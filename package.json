@@ -15,6 +15,7 @@
     "test:coverage": "vitest run --coverage",
     "db:indexes": "tsx --env-file-if-exists=.env.local scripts/db-indexes.ts",
     "db:seed": "tsx --env-file-if-exists=.env.local scripts/seed.ts",
+    "db:seed-demo": "tsx --env-file-if-exists=.env.local scripts/seed-demo-data.ts",
     "hash-password": "tsx --env-file-if-exists=.env.local scripts/hash-password.ts",
     "sweep:evidence": "tsx --env-file-if-exists=.env.local scripts/sweep-orphaned-evidence.ts",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build"

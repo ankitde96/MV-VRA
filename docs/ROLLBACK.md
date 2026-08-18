@@ -56,8 +56,19 @@ nullable with no default other than null — reverting the model files alone is 
 documents were already written with these fields set, since older code simply ignores
 fields it doesn't select.
 
-Phase C (dashboard rebuild) next — no schema change expected, its own Active-plan note if
-that changes.
+Phase C (dashboard rebuild) — DONE. app/(internal)/dashboard/page.tsx rebuilt (glass hero,
+KRI/KPI tile rows, two new charts — RiskAgingChart, ResidualExposureChart — plus two new
+KriListCard watchlists). New: components/charts/{risk-aging,residual-exposure}-chart.tsx,
+components/layout/kri-list-card.tsx, scripts/seed-demo-data.ts. Edited: stat-card.tsx (adds
+`glass` prop), page-header.tsx (adds `aurora` variant). No schema/auth/service change — only
+new reads via existing getWorkspaceAnalytics(). Verified live in Chrome (light+dark,
+multi-workspace-admin dev fixture login): all KRI/KPI numbers match a direct script query
+against the same seeded data. One pre-existing recharts hydration quirk noted, not a
+regression (DECISIONS.md 030) — reproduces only on client-side soft-nav between chart-heavy
+pages, never on a fresh load.
+
+Phase D (executive roll-up rebuild) next — no schema change expected, its own Active-plan
+note if that changes.
 
 Dependencies: CONSTRAINTS.md #1's per-package ask is pre-approved for this round only
 (DECISIONS.md 028) — each package actually added still gets its own DECISIONS.md entry.

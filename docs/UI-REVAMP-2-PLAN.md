@@ -182,11 +182,25 @@ Each phase ends with `npm run verify` green and its own commit.
   plus new assertions in `assessment-assignment.test.ts`/`assessment-review.test.ts` for
   the three new writers. 201/201 tests green, `npm run verify` clean.
 
-### Phase C — Dashboard rebuild
+### Phase C — Dashboard rebuild ✅ (this session)
 
-- KPI/KRI cockpit: glass hero with aurora mesh, KRI tiles with sparklines/trend deltas,
-  risk-aging bar, residual-exposure line, sensitive-data exposure cut, attention queue.
-- `dataviz` skill governs chart palette/form/data-table-alternative rule.
+- KPI/KRI cockpit: glass hero with aurora mesh + grain (`PageHeader`'s new `aurora` prop),
+  8 glass KRI/KPI tiles (`StatCard`'s new `glass` prop), two new charts
+  (`RiskAgingChart` — stacked bar by age bucket, `ResidualExposureChart` — trend line), two
+  new watchlists (`KriListCard` — reassessment overdue, portal stalls). Kept Round 1's
+  vendor-by-tier and risk-posture charts, attention queue, and recent activity — still
+  useful, not replaced.
+- `dataviz` skill's palette validator run before writing chart code — found a real,
+  pre-existing normal-vision-floor issue in the locked severity palette; not fixed (out of
+  scope, its own decision), mitigated via mandatory legend/table-alternative on the new
+  chart. See `DECISIONS.md` 030.
+- `scripts/seed-demo-data.ts` (new, `npm run db:seed-demo`) — 12-vendor demo dataset so the
+  new charts render real spread, not empty states.
+- Verified live in Chrome, light + dark, against real seeded data — every KRI/KPI number
+  cross-checked against a direct script query. One pre-existing recharts hydration quirk
+  noted (client-nav-only, not a regression) — `DECISIONS.md` 030.
+- `npm run verify` clean throughout — no schema/service/test changes this phase, only new
+  UI consuming Phase B's existing `getWorkspaceAnalytics()`.
 
 ### Phase D — Executive roll-up rebuild
 

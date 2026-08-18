@@ -23,6 +23,80 @@
 
 ---
 
+## [2026-08-18] 030 — UI Revamp Round 2, Phase C: risk-severity palette validated (one pre-existing hard-fail flagged, not fixed), demo-data seed script, recharts hydration quirk noted
+
+**Decision:** Three things settled for Phase C (dashboard rebuild):
+
+1. Ran the `dataviz` skill's `validate_palette.js` against the project's actual chart colors
+   before writing any chart code, per the skill's required procedure. The locked
+   risk-severity palette (`--risk-critical`/`--risk-high`/`--risk-medium`/`--risk-low`) came
+   back with a real finding: light-mode critical↔high (`#b91c1c`↔`#b45309`) sits at
+   normal-vision ΔE 9.1 — below the validator's 15 floor, meaning even full-color-vision
+   readers can find the two hard to tell apart in a bare color swatch. **Not fixed** — the
+   palette is locked (`DESIGN-SYSTEM.md` §2/§3, restated in `DECISIONS.md` 028) and
+   recoloring it is its own decision with its own blast radius (every badge, table cell, and
+   existing chart in the app), not something to change as a side effect of building one new
+   chart. Mitigation: every new severity-colored chart (`RiskAgingChart`) ships an
+   always-visible legend, tooltip labels, and a mandatory table alternative — exactly what
+   the validator itself prescribes for a WARN/FAIL band ("legal only with secondary
+   encoding") and consistent with `DESIGN-SYSTEM.md` §3's pre-existing "icon + label + colour
+   always" rule.
+2. `scripts/seed-demo-data.ts` (new, `npm run db:seed-demo`) — 12 demo vendors with a
+   realistic spread of tiers, risks, CAP tasks, and assessment states, so the new KRI/KPI
+   charts have something real to render against locally. Deliberately separate from
+   `scripts/seed.ts` (auth bootstrap, required for every environment) — this is opt-in
+   dev-only visual-verification data, idempotent by a `.demo.mv-vra.local` domain suffix
+   (a re-run deletes and recreates its own rows, never touches non-demo data).
+3. A pre-existing `recharts` SSR/hydration quirk was surfaced during browser verification —
+   not introduced by this phase, but now more likely to be _noticed_ since the dashboard
+   went from 2 chart instances to 4. Client-side soft-navigation between two chart-heavy
+   pages in the same session (e.g. dashboard → roll-up → dashboard) can produce a hydration
+   warning from recharts' internal auto-generated SVG `clipPath` id counter drifting between
+   the server and client render passes. Confirmed via a hard reload that a fresh page load
+   never shows it — this is a client-navigation-only cosmetic console warning (React
+   recovers by re-rendering the affected subtree), not a data or functional bug. Not fixed
+   this phase; flagged in `HANDOVER.md` as a known, pre-existing issue worth a real fix
+   (e.g. a stable `id` prop threaded through each `ChartContainer`) if it ever surfaces
+   visibly to a user rather than only in devtools.
+
+**Context:** `docs/UI-REVAMP-2-PLAN.md` Phase C. The `dataviz` skill (loaded per the plan)
+requires running its validator before writing chart code, not eyeballing colorblind safety.
+
+**Rationale:** Point 1 follows the same discipline `DECISIONS.md` has used for every other
+locked-palette question in this project (025/028): a real accessibility finding gets
+recorded and mitigated at the point of use, not silently absorbed into a bigger unrelated
+change. Point 2 exists because Phase B's analytics aggregations are meaningless to look at
+against near-empty dev fixtures — every KRI/KPI needs enough spread (varied tiers, risk
+ages, CAP states) to actually be checkable by eye, and that data has no reason to be
+conflated with the auth-bootstrap seed every fresh environment needs regardless of whether
+anyone ever looks at a chart.
+
+**Alternatives rejected:**
+
+- _Re-step the risk-severity colors to clear the validator's normal-vision floor_ — rejected;
+  out of scope for a chart-building task, and DESIGN-SYSTEM.md's original entry already
+  hand-computed these specific hex values against WCAG contrast — a decision with its own
+  reasoning that deserves its own review, not an incidental change here.
+- _Fold demo data into `scripts/seed.ts`_ — rejected; would make every fresh clone's
+  mandatory bootstrap step slower and noisier for a use case (visual dashboard verification)
+  most environments don't need.
+- _Chase the recharts hydration warning to a fix now_ — rejected; it's cosmetic
+  (React self-heals), pre-existing (not a Phase C regression), and a proper fix means
+  auditing every `ChartContainer` usage for a stable id strategy — a separate, scoped task.
+
+**Consequences:** Any future new chart added to a page that already has charts on it should
+expect the same recharts id-drift warning under client-side navigation until the underlying
+id-stability issue is actually fixed — don't treat it as a new bug specific to that chart.
+`npm run db:seed-demo` requires `npm run db:seed` to have run first (needs the default
+workspace and an admin user) — it throws a clear error if not. The palette finding stands as
+a documented, open item — a future accessibility pass on this app should start from this
+entry rather than rediscovering it.
+
+**Decided by:** Claude Sonnet 5 (`claude-sonnet-5`), implementing Phase C of
+`docs/UI-REVAMP-2-PLAN.md`.
+
+---
+
 ## [2026-08-18] 029 — UI Revamp Round 2, Phase B: three additive timestamp fields (not six — three already existed), cadence/SLA config on Workspace, null-excluded analytics
 
 **Decision:** `docs/UI-REVAMP-2-PLAN.md`'s KPI/KRI framework named six additive fields.

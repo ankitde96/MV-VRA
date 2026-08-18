@@ -19,12 +19,17 @@ export function StatCard({
   icon,
   tone = "default",
   hint,
+  glass = false,
 }: {
   label: string;
   value: number;
   icon?: ReactNode;
   tone?: "default" | "critical" | "high" | "medium" | "low";
   hint?: string;
+  // UI Revamp Round 2 (DECISIONS.md 028) — a KPI/KRI stat card is exactly the surface
+  // glass is sanctioned on. `tone`'s color (text/icon only, never the card surface) is
+  // unaffected either way — this only swaps the card chrome, not the risk-semantic value.
+  glass?: boolean;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-10% 0px" });
@@ -57,7 +62,7 @@ export function StatCard({
             : "text-foreground";
 
   return (
-    <Card className="shadow-(--shadow-card)">
+    <Card className={cn(glass ? "glass-panel" : "shadow-(--shadow-card)")}>
       <CardContent className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-muted-foreground text-xs font-medium uppercase">
