@@ -5,13 +5,14 @@
  * (`docs/questionnaires/wfpl-vendor-risk-assessment-v2.0.csv`, the client-provided
  * questionnaire, copied verbatim); this script is the only thing that ever reads it.
  *
- * Every question is deliberately `single_select` Yes/No, per explicit direction — even the
- * handful of genuinely open-ended questions in the source (e.g. "Provide the vendor's name,
- * registered address, and contact details") are Yes/No here, not free text. That's a real
- * semantic loss for those specific questions (a Yes/No answer to "what is your org
- * structure?" isn't meaningful) — flagged here rather than silently "fixed", since the
- * instruction was explicit and changing question types is a content decision, not a
- * technical one.
+ * Every question is `single_select` Yes/No by default, per explicit direction — except the
+ * 5 questions in `TEXT_TYPE_QUESTION_NUMBERS` below that are genuinely open-ended (e.g.
+ * "Provide the vendor's name, registered address, and contact details") and get `type:
+ * "text"` instead, per a follow-up direction correcting the all-Yes/No default for exactly
+ * those. Everything else that merely *reads* like a statement rather than a question (e.g.
+ * "Documented Change Management policy and procedures.") is still a genuine Yes/No
+ * checklist confirmation and stays that way — see `TEXT_TYPE_QUESTION_NUMBERS`'s own
+ * comment for how the 5 were identified and why the rest weren't included.
  *
  * Idempotent by `template_key` — a second run finds the existing template and exits without
  * creating a duplicate or a new version; it does NOT update an already-published template in
@@ -112,6 +113,23 @@ function slugify(title: string): string {
 }
 
 /**
+ * The 5 questions (by 1-indexed position across the whole questionnaire, matching the
+ * `questionNumber` counter below — i.e. `WFPL-001`, `WFPL-002`, `WFPL-003`, `WFPL-027`,
+ * `WFPL-110`) that are genuinely open-ended and get `type: "text"` instead of the Yes/No
+ * default: "Provide the vendor's name, registered address, and contact details.",
+ * "Contact details of Primary point of Contact and Secondary Point of Contact...",
+ * "What is the organizational structure of your company?", "How often is the risk
+ * register reviewed and updated?", "How are compliance questionnaires shared and tracked
+ * with third-party vendors?". Found by grepping the source for question text that doesn't
+ * start with a yes/no auxiliary (Are/Is/Do/Does/Have/Can/...) and hand-checking each hit —
+ * most of those hits (e.g. "Documented Change Management policy and procedures.",
+ * "Code reviews are performed before deployment.") are still genuine Yes/No checklist
+ * confirmations, just phrased as declarative statements rather than questions ("[Do you
+ * have a] documented..."); only these 5 ask for a value a Yes/No can't express.
+ */
+const TEXT_TYPE_QUESTION_NUMBERS = new Set([1, 2, 3, 27, 110]);
+
+/**
  * Walks the parsed CSV and builds the questions_schema. A row is a section header when
  * column 0 (S.No) is blank and column 1 (question text) is non-blank; a row is a question
  * when column 0 is non-blank. Everything else (fully blank rows — the CSV has hundreds of
@@ -157,14 +175,19 @@ function buildSchemaFromCsv(rows: string[][]): QuestionsSchema {
     const text = evidenceText
       ? `${questionText}\n\nEvidence: ${evidenceText}`
       : questionText;
+    const isTextType = TEXT_TYPE_QUESTION_NUMBERS.has(questionNumber);
 
-    currentSection.questions.push({
-      control_id: controlId,
-      text,
-      type: "single_select",
-      options: ["Yes", "No"],
-      required: true,
-    });
+    currentSection.questions.push(
+      isTextType
+        ? { control_id: controlId, text, type: "text", required: true }
+        : {
+            control_id: controlId,
+            text,
+            type: "single_select",
+            options: ["Yes", "No"],
+            required: true,
+          },
+    );
   }
 
   return { schema_format_version: 1, sections };
