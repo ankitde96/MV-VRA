@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RaiseRiskDialog } from "@/components/risks/raise-risk-dialog";
 import {
   SeverityBadge,
@@ -111,7 +111,6 @@ export function AssessmentReviewClient({
   const [dialogTitle, setDialogTitle] = useState("");
   const [dialogDescription, setDialogDescription] = useState("");
   const [completing, setCompleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const isCompleted = assessment.status === "completed";
 
@@ -125,7 +124,6 @@ export function AssessmentReviewClient({
   }
 
   async function handleCompleteReview() {
-    setError(null);
     setCompleting(true);
     try {
       const res = await fetch(
@@ -136,12 +134,13 @@ export function AssessmentReviewClient({
       );
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        setError(body?.message ?? "Failed to complete review.");
+        toast.error(body?.message ?? "Failed to complete review.");
         return;
       }
+      toast.success("Review completed.");
       router.refresh();
     } catch {
-      setError("Something went wrong. Please try again.");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setCompleting(false);
     }
@@ -161,12 +160,6 @@ export function AssessmentReviewClient({
 
   return (
     <div className="space-y-8">
-      {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-
       {/* Header */}
       <div className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>

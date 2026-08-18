@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -75,7 +74,6 @@ const initialState: FormState = {
 export function VendorIntakeForm() {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(initialState);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   function toggleDataClassification(value: string, checked: boolean) {
@@ -89,7 +87,6 @@ export function VendorIntakeForm() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
     setLoading(true);
 
     try {
@@ -116,7 +113,7 @@ export function VendorIntakeForm() {
 
       if (!response.ok) {
         const body = await response.json().catch(() => null);
-        setError(
+        toast.error(
           body?.message ??
             "Submission failed. Please check the form and try again.",
         );
@@ -135,12 +132,6 @@ export function VendorIntakeForm() {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
-      {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-
       <section className="space-y-4">
         <h2 className="text-foreground text-sm font-semibold">Vendor</h2>
         <div className="grid grid-cols-2 gap-4">

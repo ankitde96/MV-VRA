@@ -234,12 +234,18 @@ Each phase ends with `npm run verify` green and its own commit.
   past baseline would have shown as improved. Fixed via sign-based coloring.
 - 204/204 tests (2 new), `npm run verify` clean.
 
-### Phase F — Portal polish (restrained)
+### Phase F — Portal polish (restrained) ✅ (this session)
 
-- New tokens on portal chrome, OTP screen, progress, cards. Keeps 16px+ text, 44px targets,
-  70ch, plain language. No charts, no KPIs, no jargon.
-- Finishes two Round 1 debts: `DataTable` migration for `admin-users-client.tsx` and
-  `sharing-client.tsx`; remaining ~9 `toast()` conversions.
+- `.glass-panel-sm`/`.glass-panel` tokens on portal chrome, OTP card, assessment-list cards.
+  Keeps 16px+ text, 44px targets, 70ch, plain language, no charts/KPIs/jargon.
+- `DataTable` migration for `admin-users-client.tsx` and `sharing-client.tsx` (granted
+  shares flattened to one row per share+target-workspace pair).
+- Toast conversion: 9 files converted, 2 deliberately left as inline `Alert` (portal
+  submit-blocker list, field-adjacent evidence-upload error) per `DESIGN-SYSTEM.md` §6/§7 —
+  `DECISIONS.md` 033.
+- 204/204 tests unchanged (no service-layer code touched), `npm run verify` clean.
+
+**Round 2 complete — all 6 phases done.**
 
 ---
 

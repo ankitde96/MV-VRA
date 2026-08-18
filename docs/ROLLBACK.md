@@ -86,8 +86,19 @@ bug — reduction% was hardcoded green regardless of sign, but residual can legi
 exceed inherent with multiple open risks (DECISIONS.md 032). 204/204 tests (2 new), npm run
 verify clean.
 
-Phase F (portal polish) next — restrained scope per docs/UI-REVAMP-2-PLAN.md's own
-guardrail (portal stays low-density, no charts/KPIs there).
+Phase F (portal polish + Round 1 debt cleanup) — DONE, and the full Round 2 plan is now
+complete. Portal: .glass-panel-sm header (sticky) + OTP card + assessment-list cards, no
+density/charts/KPI change. DataTable migration: admin-users-client.tsx, sharing-client.tsx
+(granted shares flattened to one row per share+target-workspace pair). Toast conversion:
+9 files converted (vendor-document-upload, assign-assessment-form, offboarding-panel,
+template-builder-form, vendor-intake-form, raise-risk-dialog, add-cap-task-dialog,
+assessment-review-client, template-actions); 2 files deliberately left as inline Alert
+(assessment-answer-form's submit-blocker list, evidence-upload's field-adjacent error) per
+DESIGN-SYSTEM.md §6/§7 — DECISIONS.md 033. No schema/auth change. 204/204 tests unchanged
+(no service-layer code touched this phase), npm run verify clean.
+
+Round 2 (all 6 phases: A tokens, B data layer, C dashboard, D roll-up, E vendor scorecard,
+F polish/cleanup) is complete. Next real work is outside this plan's scope.
 
 Dependencies: CONSTRAINTS.md #1's per-package ask is pre-approved for this round only
 (DECISIONS.md 028) — each package actually added still gets its own DECISIONS.md entry.

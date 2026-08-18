@@ -1,10 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Share2, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { DataTable } from "@/components/data-table/data-table";
+import { EmptyState } from "@/components/layout/empty-state";
 import {
   Select,
   SelectContent,
@@ -44,6 +49,22 @@ interface AvailableShare {
   expires_at: string | null;
 }
 
+interface GrantedRow {
+  key: string;
+  share_id: string;
+  vendor_domain: string;
+  workspace_id: string;
+  workspace_name: string;
+  granted_at: string;
+}
+
+/**
+ * UI Revamp Round 2 Phase F (`docs/UI-REVAMP-2-PLAN.md`) — closes two Round 1 debts
+ * (`docs/features/ui-revamp.md` §11): last hand-rolled list not on `DataTable`, and last
+ * form still surfacing errors via inline `Alert` instead of `toast()`. A granted share's
+ * `shared_with[]` is flattened to one `DataTable` row per (share, target workspace) pair —
+ * revoke acts on that one pairing, matching what `handleRevoke()` already took as args.
+ */
 export function SharingClient({
   canManage,
   vendors,
@@ -62,7 +83,6 @@ export function SharingClient({
   const [targetIds, setTargetIds] = useState<Set<string>>(new Set());
   const [granted, setGranted] = useState(initialGranted);
   const [available] = useState(initialAvailable);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const selectedVendor = vendors.find((v) => v.id === vendorId);
@@ -79,10 +99,11 @@ export function SharingClient({
   async function handleGrant(e: React.FormEvent) {
     e.preventDefault();
     if (!vendorId || !documentId || targetIds.size === 0) {
-      setError("Pick a vendor, a document, and at least one target workspace.");
+      toast.error(
+        "Pick a vendor, a document, and at least one target workspace.",
+      );
       return;
     }
-    setError(null);
     setLoading(true);
     try {
       const res = await fetch("/api/sharing", {
@@ -96,21 +117,21 @@ export function SharingClient({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        setError(body?.message ?? "Failed to grant share.");
+        toast.error(body?.message ?? "Failed to grant share.");
         return;
       }
+      toast.success("Share granted.");
       setTargetIds(new Set());
       const listRes = await fetch("/api/sharing/granted");
       if (listRes.ok) setGranted((await listRes.json()).shares);
     } catch {
-      setError("Something went wrong. Please try again.");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
   async function handleRevoke(shareId: string, targetWorkspaceId: string) {
-    setError(null);
     const res = await fetch(`/api/sharing/${shareId}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -118,7 +139,7 @@ export function SharingClient({
     });
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      setError(body?.message ?? "Failed to revoke share.");
+      toast.error(body?.message ?? "Failed to revoke share.");
       return;
     }
     setGranted((prev) =>
@@ -133,7 +154,85 @@ export function SharingClient({
           : s,
       ),
     );
+    toast.success("Share revoked.");
   }
+
+  const grantedRows: GrantedRow[] = granted.flatMap((s) =>
+    s.shared_with.map((w) => ({
+      key: `${s.id}:${w.workspace_id}`,
+      share_id: s.id,
+      vendor_domain: s.vendor_domain,
+      workspace_id: w.workspace_id,
+      workspace_name: w.workspace_name,
+      granted_at: s.granted_at,
+    })),
+  );
+
+  const grantedColumns: ColumnDef<GrantedRow>[] = [
+    {
+      accessorKey: "vendor_domain",
+      header: "Vendor",
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.vendor_domain}</span>
+      ),
+    },
+    {
+      accessorKey: "workspace_name",
+      header: "Shared with",
+      cell: ({ row }) => (
+        <Badge variant="secondary">{row.original.workspace_name}</Badge>
+      ),
+    },
+    {
+      accessorKey: "granted_at",
+      header: "Granted",
+      cell: ({ row }) => row.original.granted_at.slice(0, 10),
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      cell: ({ row }) => (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            handleRevoke(row.original.share_id, row.original.workspace_id)
+          }
+        >
+          Revoke
+        </Button>
+      ),
+    },
+  ];
+
+  const availableColumns: ColumnDef<AvailableShare>[] = [
+    {
+      accessorKey: "vendor_domain",
+      header: "Vendor",
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.vendor_domain}</span>
+      ),
+    },
+    { accessorKey: "owner_workspace_name", header: "From" },
+    {
+      accessorKey: "granted_at",
+      header: "Granted",
+      cell: ({ row }) => row.original.granted_at.slice(0, 10),
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      cell: ({ row }) => (
+        <Button
+          variant="outline"
+          size="sm"
+          render={<a href={`/api/sharing/${row.original.id}/download`} />}
+        >
+          Download
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -147,12 +246,6 @@ export function SharingClient({
           is recorded as an audit event.
         </p>
       </div>
-
-      {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
 
       {canManage ? (
         <form
@@ -232,35 +325,14 @@ export function SharingClient({
       {canManage ? (
         <div>
           <h2 className="mb-3 text-sm font-medium">Shared by this workspace</h2>
-          {granted.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Nothing shared out yet.
-            </p>
+          {grantedRows.length === 0 ? (
+            <EmptyState
+              icon={Share2}
+              title="Nothing shared out yet"
+              description="Grant a share above to see it here."
+            />
           ) : (
-            <ul className="space-y-2">
-              {granted.map((s) => (
-                <li key={s.id} className="rounded-lg border p-3 text-sm">
-                  <div className="font-medium">{s.vendor_domain}</div>
-                  <div className="mt-1 flex flex-wrap gap-2">
-                    {s.shared_with.map((w) => (
-                      <span
-                        key={w.workspace_id}
-                        className="bg-secondary inline-flex items-center gap-2 rounded-md px-2 py-0.5 text-xs"
-                      >
-                        {w.workspace_name}
-                        <button
-                          type="button"
-                          className="text-muted-foreground hover:text-foreground"
-                          onClick={() => handleRevoke(s.id, w.workspace_id)}
-                        >
-                          revoke
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <DataTable columns={grantedColumns} data={grantedRows} />
           )}
         </div>
       ) : null}
@@ -268,32 +340,13 @@ export function SharingClient({
       <div>
         <h2 className="mb-3 text-sm font-medium">Shared with this workspace</h2>
         {available.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            Nothing has been shared with you yet.
-          </p>
+          <EmptyState
+            icon={Inbox}
+            title="Nothing shared with you yet"
+            description="Documents another workspace shares with you appear here."
+          />
         ) : (
-          <ul className="space-y-2">
-            {available.map((s) => (
-              <li
-                key={s.id}
-                className="flex items-center justify-between rounded-lg border p-3 text-sm"
-              >
-                <div>
-                  <div className="font-medium">{s.vendor_domain}</div>
-                  <div className="text-muted-foreground text-xs">
-                    from {s.owner_workspace_name}
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  render={<a href={`/api/sharing/${s.id}/download`} />}
-                >
-                  Download
-                </Button>
-              </li>
-            ))}
-          </ul>
+          <DataTable columns={availableColumns} data={available} />
         )}
       </div>
     </div>

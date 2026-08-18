@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -64,7 +63,6 @@ export function RaiseRiskDialog({
   const [impactLevel, setImpactLevel] = useState<RiskImpactLevel>("high");
   const [compensatingControlsInput, setCompensatingControlsInput] =
     useState("");
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const compensatingControls = compensatingControlsInput
@@ -82,11 +80,10 @@ export function RaiseRiskDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) {
-      setError("Please provide a risk title.");
+      toast.error("Please provide a risk title.");
       return;
     }
 
-    setError(null);
     setLoading(true);
 
     try {
@@ -133,12 +130,6 @@ export function RaiseRiskDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          {error ? (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          ) : null}
-
           <div className="space-y-1">
             <Label htmlFor="control_id">Control ID</Label>
             <Input

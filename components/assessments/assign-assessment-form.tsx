@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -49,7 +49,6 @@ export function AssignAssessmentForm({
   const router = useRouter();
   const [selectedTemplateByEngagement, setSelectedTemplateByEngagement] =
     useState<Record<string, string>>({});
-  const [error, setError] = useState<string | null>(null);
   const [loadingEngagementId, setLoadingEngagementId] = useState<string | null>(
     null,
   );
@@ -57,11 +56,10 @@ export function AssignAssessmentForm({
   async function assign(engagementId: string) {
     const templateId = selectedTemplateByEngagement[engagementId];
     if (!templateId) {
-      setError("Choose a template first.");
+      toast.error("Choose a template first.");
       return;
     }
 
-    setError(null);
     setLoadingEngagementId(engagementId);
     try {
       const response = await fetch(`/api/vendors/${vendorId}/assessments`, {
@@ -74,12 +72,13 @@ export function AssignAssessmentForm({
       });
       if (!response.ok) {
         const body = await response.json().catch(() => null);
-        setError(body?.message ?? "Could not assign the assessment.");
+        toast.error(body?.message ?? "Could not assign the assessment.");
         return;
       }
+      toast.success("Assessment assigned.");
       router.refresh();
     } catch {
-      setError("Something went wrong. Please try again.");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setLoadingEngagementId(null);
     }
@@ -91,12 +90,6 @@ export function AssignAssessmentForm({
 
   return (
     <div className="space-y-4">
-      {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-
       <ul className="divide-border divide-y rounded-md border">
         {engagements.map((engagement) => (
           <li key={engagement.id} className="space-y-3 px-4 py-3 text-sm">

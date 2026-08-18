@@ -23,6 +23,81 @@
 
 ---
 
+## [2026-08-18] 033 — UI Revamp Round 2, Phase F: restrained portal polish, DataTable migration for admin-users/sharing, toast conversion completed — with two deliberate exceptions kept
+
+**Decision:** Closed Round 1's two named debts (`docs/features/ui-revamp.md` §11) plus the
+plan's own portal-polish item.
+
+1. **Portal polish, restrained per §1/§7**: `.glass-panel-sm` on the sticky portal header,
+   `.glass-panel` on the OTP sign-in card, `.glass-panel-sm` on the assessment-list cards.
+   No charts, no KPIs, no density change, no jargon — text stays 16px+, targets stay 44px,
+   line length stays capped. This is the literal scope of "portal chrome, OTP screen, cards"
+   from `docs/UI-REVAMP-2-PLAN.md`'s Phase F description, nothing more.
+2. **DataTable migration**: `admin-users-client.tsx` and `sharing-client.tsx` were the last
+   two hand-rolled `<table>`/`<ul>` lists not on the shared `DataTable` (vendors/risk-
+   register/templates already migrated in Round 1). `sharing-client.tsx`'s granted-shares
+   list has a nested `shared_with[]` per document — flattened to one `DataTable` row per
+   (share, target-workspace) pair rather than forced into a grouped-list shape that doesn't
+   fit `DataTable`'s row model.
+3. **Toast conversion completed**, with two files audited and deliberately left as inline
+   `Alert`s rather than converted, because converting them would be a regression, not a
+   fix:
+   - `components/portal/assessment-answer-form.tsx`'s submit-blocker `Alert` — this _is_
+     `DESIGN-SYSTEM.md` §7 rule 6 ("Blockers listed at submit... a link that scrolls to and
+     focuses the field"). A toast disappears; this message needs to stay visible while the
+     vendor fixes the blocking field.
+   - `components/portal/evidence-upload.tsx`'s inline error text — deliberately field-
+     adjacent, not global, because a vendor can have several `EvidenceUpload` instances open
+     on one page; a global toast couldn't say which upload failed. Matches §6's "error
+     messages sit adjacent to the field" accessibility floor.
+
+   Every other remaining `Alert variant="destructive"` was a genuine debt (transient
+   action-result error with no reason to stay inline) and got converted:
+   `vendor-document-upload.tsx`, `assign-assessment-form.tsx`, `offboarding-panel.tsx`,
+   `template-builder-form.tsx`, `vendor-intake-form.tsx` (finished a Round 1 partial
+   migration — it already had `toast.success`/`toast.error` for the fetch path but still
+   rendered a separate inline `Alert` for the same error), `raise-risk-dialog.tsx` and
+   `add-cap-task-dialog.tsx` (found via a repo-wide grep, not on the original §11 list —
+   both already used `toast` for fetch failures but had dead `error`/`Alert` state left over
+   from an incomplete migration), `assessment-review-client.tsx`, `template-actions.tsx`.
+
+**Context:** `docs/UI-REVAMP-2-PLAN.md` Phase F, closing the two items `docs/features/
+ui-revamp.md` §11 named as Round 1 debt, per the project owner's explicit choice to
+continue past the core glass/KPI ask into full cleanup.
+
+**Rationale:** A `grep -rl 'Alert variant="destructive"'` across `components/` was run
+before declaring this done, rather than trusting the original `§11` list — it found two
+files (`raise-risk-dialog.tsx`, `add-cap-task-dialog.tsx`) with dead error-handling code
+the list didn't name, and confirmed the two portal files that should stay as-is rather than
+being blindly converted for consistency. "Convert every Alert to a toast" would have been
+the wrong rule applied uniformly; the actual rule is "convert transient action-result
+errors, keep field-adjacent and blocking-list errors inline" — DESIGN-SYSTEM.md §6/§7
+already state this rule, this phase is just the first time every file in the app actually
+follows it.
+
+**Alternatives rejected:**
+
+- _Convert the two portal exceptions for consistency with every other file_ — rejected;
+  "every error looks the same" is not a design goal, and both cases have an explicit,
+  named reason in `DESIGN-SYSTEM.md` to stay inline.
+- _Leave `raise-risk-dialog.tsx`/`add-cap-task-dialog.tsx`'s dead `error` state alone since
+  it wasn't on the original debt list_ — rejected; dead state that renders a JSX block that
+  can never show (both files' remaining `setError` calls were already replaced by `toast`
+  calls in an earlier session, leaving the state and its `Alert` orphaned) is exactly the
+  kind of thing "closing out UI debt" should catch, list or no list.
+
+**Consequences:** No `Alert variant="destructive"` remains anywhere in `components/` except
+the two named, deliberate exceptions — a future `grep` finding a new one outside those two
+files is real debt, not a false positive to dismiss. `sharing-client.tsx`'s granted-share
+`DataTable` rows are keyed `${shareId}:${workspaceId}`, not the share's own `_id` — any
+future code reading that table's row identity should use the compound key, not assume one
+row per share document.
+
+**Decided by:** Claude Sonnet 5 (`claude-sonnet-5`), implementing Phase F of
+`docs/UI-REVAMP-2-PLAN.md`.
+
+---
+
 ## [2026-08-18] 032 — UI Revamp Round 2, Phase E: per-vendor risk scorecard, a `getWorkspaceAnalytics()`-vs-vendor-scope reconsideration, and a real severity-color bug caught live
 
 **Decision:** Built the per-vendor risk scorecard `DESIGN-SYSTEM.md` §4 spec'd for Round 1

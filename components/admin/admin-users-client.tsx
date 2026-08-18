@@ -3,18 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable } from "@/components/data-table/data-table";
+import { EmptyState } from "@/components/layout/empty-state";
 import {
   Select,
   SelectContent,
@@ -40,6 +36,13 @@ const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: "viewer", label: "Viewer" },
 ];
 
+/**
+ * UI Revamp Round 2 Phase F (`docs/UI-REVAMP-2-PLAN.md`) — closes a Round 1 debt
+ * (`docs/features/ui-revamp.md` §11): this was the last hand-rolled `<table>` still not on
+ * the shared `DataTable` (vendors/risk-register/templates already migrated). Role/remove
+ * controls stay as interactive cell renderers — no `onRowClick`, since there's no per-user
+ * detail page to navigate to and these cells need their own click targets.
+ */
 export function AdminUsersClient({
   initialUsers,
   currentUserId,
@@ -112,6 +115,67 @@ export function AdminUsersClient({
     toast.success("User removed from workspace.");
   }
 
+  const columns: ColumnDef<WorkspaceUser>[] = [
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.name}</span>
+      ),
+    },
+    { accessorKey: "email", header: "Email" },
+    {
+      accessorKey: "role",
+      header: "Role",
+      cell: ({ row }) => (
+        <Select
+          value={row.original.role}
+          onValueChange={(v) =>
+            v && handleRoleChange(row.original.user_id, v as Role)
+          }
+        >
+          <SelectTrigger size="sm" className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ROLE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <Badge
+          variant={row.original.status === "active" ? "secondary" : "outline"}
+        >
+          {row.original.status}
+        </Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      cell: ({ row }) =>
+        row.original.user_id !== currentUserId ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleRemove(row.original.user_id)}
+          >
+            Remove
+          </Button>
+        ) : (
+          <span className="text-muted-foreground text-xs">You</span>
+        ),
+    },
+  ];
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <div>
@@ -175,64 +239,20 @@ export function AdminUsersClient({
         </Button>
       </form>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.map((u) => (
-            <TableRow key={u.user_id}>
-              <TableCell>{u.name}</TableCell>
-              <TableCell>{u.email}</TableCell>
-              <TableCell>
-                <Select
-                  value={u.role}
-                  onValueChange={(v) =>
-                    v && handleRoleChange(u.user_id, v as Role)
-                  }
-                >
-                  <SelectTrigger size="sm" className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROLE_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </TableCell>
-              <TableCell>
-                <Badge
-                  variant={u.status === "active" ? "secondary" : "outline"}
-                >
-                  {u.status}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right">
-                {u.user_id !== currentUserId ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleRemove(u.user_id)}
-                  >
-                    Remove
-                  </Button>
-                ) : (
-                  <span className="text-muted-foreground text-xs">You</span>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {users.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="No users yet"
+          description="Add the first user above."
+        />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={users}
+          searchKey="name"
+          searchPlaceholder="Search users..."
+        />
+      )}
     </div>
   );
 }

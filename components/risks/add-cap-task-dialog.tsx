@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -54,21 +53,19 @@ export function AddCapTaskDialog({
   const [ownerType, setOwnerType] = useState<"vendor" | "internal">("vendor");
   const [ownerRef, setOwnerRef] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!description.trim() || !dueDate) {
-      setError("Please provide a description and due date.");
+      toast.error("Please provide a description and due date.");
       return;
     }
     if (ownerType === "internal" && !ownerRef.trim()) {
-      setError("An internal owner requires a User id.");
+      toast.error("An internal owner requires a User id.");
       return;
     }
 
-    setError(null);
     setLoading(true);
 
     try {
@@ -114,12 +111,6 @@ export function AddCapTaskDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          {error ? (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          ) : null}
-
           <div className="space-y-1">
             <Label htmlFor="cap-description">Description *</Label>
             <Textarea

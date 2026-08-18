@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 async function postAction(url: string) {
   const response = await fetch(url, { method: "POST" });
@@ -21,17 +21,15 @@ export function TemplateActions({
   status: "draft" | "published" | "archived";
 }) {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function run(action: () => Promise<void>) {
-    setError(null);
     setLoading(true);
     try {
       await action();
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
@@ -39,12 +37,6 @@ export function TemplateActions({
 
   return (
     <div className="space-y-3">
-      {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-
       <div className="flex gap-3">
         {status === "draft" ? (
           <Button

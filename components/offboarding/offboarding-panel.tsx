@@ -2,10 +2,10 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -72,26 +72,24 @@ export function OffboardingPanel({
   offboarding: OffboardingView | null;
 }) {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
   const [items, setItems] = useState([{ label: "", owner_id: "" }]);
   const destructionFileRef = useRef<HTMLInputElement>(null);
   const assetFileRef = useRef<HTMLInputElement>(null);
 
   async function call(key: string, url: string, opts: RequestInit) {
-    setError(null);
     setLoading(key);
     try {
       const response = await fetch(url, opts);
       if (!response.ok) {
         const body = await response.json().catch(() => null);
-        setError(body?.message ?? "Something went wrong.");
+        toast.error(body?.message ?? "Something went wrong.");
         return false;
       }
       router.refresh();
       return true;
     } catch {
-      setError("Something went wrong. Please try again.");
+      toast.error("Something went wrong. Please try again.");
       return false;
     } finally {
       setLoading(null);
@@ -103,7 +101,7 @@ export function OffboardingPanel({
       .map((i) => ({ label: i.label.trim(), owner_id: i.owner_id.trim() }))
       .filter((i) => i.label && i.owner_id);
     if (checklist_items.length === 0) {
-      setError("Add at least one checklist item with a label and owner.");
+      toast.error("Add at least one checklist item with a label and owner.");
       return;
     }
     await call(
@@ -138,7 +136,7 @@ export function OffboardingPanel({
       kind === "destruction_certificate" ? destructionFileRef : assetFileRef;
     const file = fileInput.current?.files?.[0];
     if (!file) {
-      setError("Choose a file first.");
+      toast.error("Choose a file first.");
       return;
     }
     const formData = new FormData();
@@ -188,11 +186,6 @@ export function OffboardingPanel({
           <span className="text-sm font-medium">{engagementLabel}</span>
           <Badge variant="outline">Not started</Badge>
         </div>
-        {error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
         <div className="space-y-2">
           {items.map((item, idx) => (
             <div key={idx} className="flex items-center gap-2">
@@ -257,12 +250,6 @@ export function OffboardingPanel({
           {STATUS_LABEL[offboarding.status]}
         </Badge>
       </div>
-
-      {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
 
       <div className="space-y-2">
         <p className="text-muted-foreground text-xs font-semibold uppercase">

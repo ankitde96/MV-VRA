@@ -15,6 +15,12 @@ import { ShieldCheck } from "lucide-react";
  *
  * Fixes a real bug from the pre-revamp header: `border-border` was set without `border-b`,
  * so the header had no visible bottom border at all.
+ *
+ * UI Revamp Round 2 Phase F (`docs/UI-REVAMP-2-PLAN.md`, `DECISIONS.md` 028) — the header
+ * gets a restrained `.glass-panel-sm` touch (sticky, subtle blur) so the portal reads as
+ * part of the same modern-SaaS system as the internal console, without adopting its
+ * density, motion, or KPI surfaces — §1/§7 are unchanged: this remains the low-density,
+ * plain-language, no-charts surface built for someone who did not ask to be there.
  */
 export default function PortalLayout({
   children,
@@ -23,7 +29,7 @@ export default function PortalLayout({
 }) {
   return (
     <div className="bg-background min-h-screen text-base">
-      <header className="border-border bg-card flex h-16 items-center gap-2 border-b px-6">
+      <header className="glass-panel-sm sticky top-0 z-(--z-nav) flex h-16 items-center gap-2 px-6">
         <ShieldCheck className="text-primary size-5" aria-hidden="true" />
         <span className="text-foreground text-base font-semibold">
           MV-VRA Vendor Portal

@@ -2,8 +2,8 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export interface VendorDocumentListItem {
   id: string;
@@ -24,16 +24,14 @@ export function VendorDocumentUpload({
 }: VendorDocumentUploadProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
 
     const file = fileInputRef.current?.files?.[0];
     if (!file) {
-      setError("Choose a file first.");
+      toast.error("Choose a file first.");
       return;
     }
 
@@ -49,14 +47,15 @@ export function VendorDocumentUpload({
 
       if (!response.ok) {
         const body = await response.json().catch(() => null);
-        setError(body?.message ?? "Upload failed. Please try again.");
+        toast.error(body?.message ?? "Upload failed. Please try again.");
         return;
       }
 
+      toast.success("Document uploaded.");
       if (fileInputRef.current) fileInputRef.current.value = "";
       router.refresh();
     } catch {
-      setError("Something went wrong. Please try again.");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -64,12 +63,6 @@ export function VendorDocumentUpload({
 
   return (
     <div className="max-w-xl space-y-4">
-      {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-
       {documents.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           No documents uploaded yet.

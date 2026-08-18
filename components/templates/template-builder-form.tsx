@@ -2,12 +2,12 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -60,7 +60,6 @@ export function TemplateBuilderForm({
   const [sections, setSections] = useState<BuilderSection[]>(() =>
     initialSchema ? hydrateSchema(initialSchema) : [emptySection()],
   );
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const previewSchema = useMemo(() => serializeSchema(sections), [sections]);
@@ -119,7 +118,6 @@ export function TemplateBuilderForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
     setLoading(true);
 
     try {
@@ -138,17 +136,18 @@ export function TemplateBuilderForm({
 
       if (!response.ok) {
         const responseBody = await response.json().catch(() => null);
-        setError(
+        toast.error(
           responseBody?.message ??
             "Could not save the template. Please try again.",
         );
         return;
       }
 
+      toast.success(isEditing ? "Template saved." : "Template created.");
       router.push("/templates");
       router.refresh();
     } catch {
-      setError("Something went wrong. Please try again.");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -156,12 +155,6 @@ export function TemplateBuilderForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-
       <section className="grid max-w-2xl grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="template_key">Template key</Label>
