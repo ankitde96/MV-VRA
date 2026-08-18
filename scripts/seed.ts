@@ -3,11 +3,8 @@
  * library (PLAN.md Phase 1, step 5). Idempotent: re-running updates the same documents by
  * their natural keys (slug / email / control_pattern) rather than duplicating them.
  *
- * The super-admin password hash comes from lib/env.ts (SUPER_ADMIN_PASSWORD_HASH), never
- * hardcoded here — a seed script is still code that could get committed. If it's still the
- * dev placeholder (env.ts's default), a warning is printed; that placeholder cannot
- * authenticate by design (lib/auth/login.ts, Phase 2) — see scripts/hash-password.ts to
- * generate a real one.
+ * Development credentials are intentionally stable and documented in README.md. Production
+ * continues to require the configured SUPER_ADMIN_PASSWORD_HASH.
  *
  * Phase 11 extension (`DECISIONS.md` 024): a second workspace plus three additional users of
  * varied roles, so RBAC and the workspace switcher have more than one account/tenant to
@@ -22,8 +19,14 @@ import { env } from "@/lib/env";
 import { Workspace } from "@/lib/db/models/workspace";
 import { User } from "@/lib/db/models/user";
 import { MitigationGuidance } from "@/lib/db/models/mitigation-guidance";
+import { Vendor } from "@/lib/db/models/vendor";
+import {
+  DEV_VENDOR_EMAIL,
+  DEV_VENDOR_ID,
+} from "@/lib/auth/dev-vendor-credentials";
 
-const DEV_FIXTURE_PASSWORD = "dev-only-fixture-password-42";
+const DEV_PASSWORD = "admin";
+const NON_DEVELOPMENT_FIXTURE_PASSWORD = "dev-only-fixture-password-42";
 
 const DEV_PLACEHOLDER_HASH = "dev-placeholder-not-a-real-argon2-hash";
 
@@ -67,7 +70,11 @@ async function main() {
   console.log(`Workspace ready: ${workspace.slug} (${workspace._id})`);
 
   const adminEmail = env.SUPER_ADMIN_EMAIL;
-  if (env.SUPER_ADMIN_PASSWORD_HASH === DEV_PLACEHOLDER_HASH) {
+  const isDevelopment = env.NODE_ENV === "development";
+  if (
+    !isDevelopment &&
+    env.SUPER_ADMIN_PASSWORD_HASH === DEV_PLACEHOLDER_HASH
+  ) {
     console.warn(
       "SUPER_ADMIN_PASSWORD_HASH not set — seeding a placeholder hash that cannot " +
         "authenticate. Run `npm run hash-password -- '<password>'`, set the env var, and " +
@@ -75,10 +82,16 @@ async function main() {
     );
   }
 
+  const devPasswordHash = isDevelopment
+    ? await argon2.hash(DEV_PASSWORD)
+    : null;
+  const superAdminPasswordHash =
+    devPasswordHash ?? env.SUPER_ADMIN_PASSWORD_HASH;
+
   await User.findOneAndUpdate(
     { email: adminEmail },
     {
-      $set: { password_hash: env.SUPER_ADMIN_PASSWORD_HASH },
+      $set: { password_hash: superAdminPasswordHash },
       $setOnInsert: {
         email: adminEmail,
         name: "Super Admin",
@@ -120,7 +133,8 @@ async function main() {
     `Second workspace ready: ${secondWorkspace.slug} (${secondWorkspace._id})`,
   );
 
-  const fixturePasswordHash = await argon2.hash(DEV_FIXTURE_PASSWORD);
+  const fixturePasswordHash =
+    devPasswordHash ?? (await argon2.hash(NON_DEVELOPMENT_FIXTURE_PASSWORD));
   const fixtureUsers: {
     email: string;
     name: string;
@@ -161,8 +175,35 @@ async function main() {
     );
   }
   console.log(
-    `${fixtureUsers.length} dev-fixture users ready (password: "${DEV_FIXTURE_PASSWORD}", dev-only).`,
+    `${fixtureUsers.length} dev-fixture users ready (development password documented in README.md).`,
   );
+
+  if (isDevelopment) {
+    const vendor = await Vendor.findOneAndUpdate(
+      { _id: new mongoose.Types.ObjectId(DEV_VENDOR_ID) },
+      {
+        $set: {
+          workspace_id: workspace._id,
+          spoc: {
+            spoc_name: "Demo Vendor SPOC",
+            spoc_email: DEV_VENDOR_EMAIL,
+            spoc_phone: "+91-0000000000",
+          },
+        },
+        $setOnInsert: {
+          legal_name: "MV-VRA Demo Vendor",
+          domain: "vendor.demo.mv-vra.local",
+          inherent_risk_tier: 2,
+          lifecycle_status: "active",
+          documents: [],
+        },
+      },
+      { upsert: true, returnDocument: "after" },
+    );
+    console.log(
+      `Development vendor ready: ${vendor._id} (${DEV_VENDOR_EMAIL})`,
+    );
+  }
 
   const guidanceSeed = [
     {
