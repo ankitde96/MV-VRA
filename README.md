@@ -20,6 +20,28 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## Development logins
+
+`npm run db:seed` creates or refreshes these local-development accounts. Their password is
+always `admin` in the development environment so a newly seeded environment is immediately
+usable. These credentials are development-only.
+
+| User                                 | Password | Access                                                |
+| ------------------------------------ | -------- | ----------------------------------------------------- |
+| `admin@mv-vra.local`                 | `admin`  | Super Admin (all workspaces and workspace management) |
+| `analyst@mv-vra.local`               | `admin`  | Risk Analyst                                          |
+| `business-owner@mv-vra.local`        | `admin`  | Business Owner                                        |
+| `multi-workspace-admin@mv-vra.local` | `admin`  | Admin in the default and beta workspaces              |
+| `vendor@mv-vra.local`                | `123456` | Vendor portal (`6a841ef950d13373304dd55f`)            |
+
+If `SUPER_ADMIN_EMAIL` is overridden in `.env.local`, that email replaces
+`admin@mv-vra.local`. Production uses `SUPER_ADMIN_PASSWORD_HASH`; the fixed development
+password is never used there.
+
+For the vendor portal, enter the vendor username on `/portal/login`, choose **Send code**,
+then enter the documented password as the verification code. The static vendor credential
+is accepted only in development; other environments continue to require a generated OTP.
+
 ## Scripts
 
 | Script                                          | Purpose                                                                                                                                           |

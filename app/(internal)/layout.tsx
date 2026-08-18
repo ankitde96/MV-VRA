@@ -11,6 +11,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Separator } from "@/components/ui/separator";
+import { isSuperAdminEmail } from "@/lib/auth/require-super-admin";
 
 /**
  * Every route under this group is already protected by proxy.ts (fail-closed by default)
@@ -35,7 +36,7 @@ export default async function InternalLayout({
 
   return (
     <SidebarProvider>
-      <AppSidebar role={role} />
+      <AppSidebar role={role} isSuperAdmin={isSuperAdminEmail(user?.email)} />
       <SidebarInset>
         <header className="bg-background/80 sticky top-0 z-(--z-sticky-header) flex h-14 shrink-0 items-center gap-2 border-b px-4 backdrop-blur">
           <SidebarTrigger className="-ml-1" />

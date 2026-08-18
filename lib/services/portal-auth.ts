@@ -17,6 +17,13 @@ import {
   issueOtpChallenge,
 } from "@/lib/auth/otp-challenge";
 import type { PortalSessionPayload } from "@/lib/auth/portal-session";
+import { Vendor } from "@/lib/db/models/vendor";
+import { env } from "@/lib/env";
+import {
+  DEV_VENDOR_EMAIL,
+  DEV_VENDOR_ID,
+  DEV_VENDOR_PASSWORD,
+} from "@/lib/auth/dev-vendor-credentials";
 
 // PLAN.md Phase 6 item 5 — not spec numbers, a stated assumption (DECISIONS.md, this
 // phase's entry): generous enough that a real SPOC re-requesting a code a few times in ten
@@ -105,6 +112,34 @@ export async function verifyOtp(input: {
   code: string;
 }): Promise<PortalSessionPayload> {
   await dbConnect();
+
+  // A deterministic credential makes the seeded vendor usable in every local environment
+  // without reading a generated code from the console mailer. This path cannot run in test
+  // or production, where the normal single-use OTP challenge remains mandatory.
+  if (
+    env.NODE_ENV === "development" &&
+    input.email.trim().toLowerCase() === DEV_VENDOR_EMAIL &&
+    input.code === DEV_VENDOR_PASSWORD
+  ) {
+    const vendor = await Vendor.findOne({
+      _id: DEV_VENDOR_ID,
+      "spoc.spoc_email": DEV_VENDOR_EMAIL,
+    }).lean();
+    if (vendor) {
+      await recordAuditEvent({
+        workspace_id: vendor.workspace_id,
+        actor: { type: "vendor", id: vendor._id, email: DEV_VENDOR_EMAIL },
+        action: "vendor_portal.login_succeeded",
+        entity_type: "vendor",
+        entity_id: vendor._id,
+      });
+      return {
+        vendorId: vendor._id.toString(),
+        workspaceId: vendor.workspace_id.toString(),
+      };
+    }
+  }
+
   const challenge = await findActiveChallenge(input.email);
 
   if (!challenge || challenge.attempts >= OTP_MAX_ATTEMPTS) {

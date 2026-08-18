@@ -10,6 +10,7 @@ import {
   Share2,
   BarChart3,
   Users,
+  Boxes,
   ShieldCheck,
 } from "lucide-react";
 import {
@@ -80,11 +81,23 @@ const NAV_GROUPS: Array<{
         icon: Users,
         capability: "workspace.manage_users",
       },
+      {
+        href: "/admin/workspaces",
+        label: "Workspaces",
+        icon: Boxes,
+        capability: "super_admin",
+      },
     ],
   },
 ];
 
-export function AppSidebar({ role }: { role: Role }) {
+export function AppSidebar({
+  role,
+  isSuperAdmin,
+}: {
+  role: Role;
+  isSuperAdmin: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -106,7 +119,11 @@ export function AppSidebar({ role }: { role: Role }) {
       <SidebarContent>
         {NAV_GROUPS.map((group) => {
           const visibleItems = group.items.filter(
-            (item) => !item.capability || roleCanSee(role, item.capability),
+            (item) =>
+              !item.capability ||
+              (item.capability === "super_admin"
+                ? isSuperAdmin
+                : roleCanSee(role, item.capability)),
           );
           if (visibleItems.length === 0) return null;
           return (
