@@ -8,9 +8,11 @@ import { Vendor } from "@/lib/db/models/vendor";
 import { Engagement } from "@/lib/db/models/engagement";
 import { Assessment } from "@/lib/db/models/assessment";
 import { Risk } from "@/lib/db/models/risk";
+import { Response } from "@/lib/db/models/response";
 import {
   getWorkspaceAnalytics,
   getRollupAnalyticsSummary,
+  getVendorScorecard,
 } from "@/lib/services/analytics";
 
 /**
@@ -415,7 +417,6 @@ describe("getRollupAnalyticsSummary (integration)", () => {
     await Workspace.deleteMany({
       _id: { $in: [workspaceAdmin, workspaceViewerOnly] },
     });
-    await mongoose.disconnect();
   });
 
   it("includes only the workspace where the membership role grants rollup.view", async () => {
@@ -447,5 +448,218 @@ describe("getRollupAnalyticsSummary (integration)", () => {
         ws.cap_age_buckets.d61to90 +
         ws.cap_age_buckets.d90plus,
     ).toBe(0);
+  });
+});
+
+describe("getVendorScorecard (integration)", () => {
+  const workspaceId = new Types.ObjectId();
+  const vendorId = new Types.ObjectId();
+  const otherVendorId = new Types.ObjectId();
+  const engagementId = new Types.ObjectId();
+  const assessmentId = new Types.ObjectId();
+  const businessOwnerId = new Types.ObjectId();
+
+  beforeAll(async () => {
+    await dbConnect();
+
+    await Workspace.create({
+      _id: workspaceId,
+      entity_name: "Scorecard Test Workspace",
+      slug: `scorecard-test-${workspaceId.toString()}`,
+      settings: {
+        weights_version: 1,
+        tier_thresholds: { tier1_min: 70, tier2_min: 40 },
+        enterprise_risk_categories: [],
+      },
+      status: "active",
+    });
+
+    await Vendor.create([
+      {
+        _id: vendorId,
+        workspace_id: workspaceId,
+        legal_name: "Scorecard Vendor",
+        domain: `scorecard-${workspaceId.toString()}.example`,
+        spoc: {
+          spoc_name: "S",
+          spoc_email: "s@scorecard.example",
+          spoc_phone: "+1",
+        },
+        inherent_risk_tier: 1,
+      },
+      {
+        _id: otherVendorId,
+        workspace_id: workspaceId,
+        legal_name: "Other Vendor",
+        domain: `scorecard-other-${workspaceId.toString()}.example`,
+        spoc: {
+          spoc_name: "S",
+          spoc_email: "s2@scorecard.example",
+          spoc_phone: "+1",
+        },
+        inherent_risk_tier: 1,
+      },
+    ]);
+
+    await Engagement.create({
+      _id: engagementId,
+      workspace_id: workspaceId,
+      vendor_id: vendorId,
+      business_owner_id: businessOwnerId,
+      business_unit: "Engineering",
+      functional_scope: "Scorecard fixture",
+      expected_procurement_date: new Date("2026-09-01"),
+      inherent_score: { total: 80, breakdown: {}, weights_version: 1 },
+      inherent_risk_tier: 1,
+      status: "in_assessment",
+    });
+
+    await Assessment.create({
+      _id: assessmentId,
+      workspace_id: workspaceId,
+      engagement_id: engagementId,
+      vendor_id: vendorId,
+      template_id: new Types.ObjectId(),
+      template_version: 1,
+      template_snapshot: { schema_format_version: 1, sections: [] },
+      status: "completed",
+      assigned_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      submitted_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+      reviewed_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+      next_review_due: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // already overdue
+    });
+
+    // A second, different vendor's assessment/risk in the same workspace — must never
+    // leak into the first vendor's scorecard.
+    const otherEngagementId = new Types.ObjectId();
+    await Engagement.create({
+      workspace_id: workspaceId,
+      vendor_id: otherVendorId,
+      business_owner_id: businessOwnerId,
+      business_unit: "Other",
+      functional_scope: "Other fixture",
+      expected_procurement_date: new Date("2026-09-01"),
+      inherent_risk_tier: 1,
+      status: "in_assessment",
+    });
+    await Risk.create({
+      workspace_id: workspaceId,
+      assessment_id: new Types.ObjectId(),
+      engagement_id: otherEngagementId,
+      vendor_id: otherVendorId,
+      control_id: "OTHER-01",
+      title: "Should never appear in vendor's scorecard",
+      severity: "critical",
+      enterprise_risk_category: "Information Security",
+      impact_level: "critical",
+      residual_score: 99,
+      status: "open",
+    });
+
+    await Risk.create([
+      {
+        workspace_id: workspaceId,
+        assessment_id: assessmentId,
+        engagement_id: engagementId,
+        vendor_id: vendorId,
+        control_id: "SC-01",
+        title: "Open high risk",
+        severity: "high",
+        enterprise_risk_category: "Information Security",
+        impact_level: "high",
+        residual_score: 40,
+        status: "open",
+        cap_tasks: [
+          {
+            description: "Overdue remediation",
+            owner_type: "internal",
+            owner_ref: businessOwnerId,
+            due_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+            status: "overdue",
+          },
+        ],
+      },
+      {
+        workspace_id: workspaceId,
+        assessment_id: assessmentId,
+        engagement_id: engagementId,
+        vendor_id: vendorId,
+        control_id: "SC-02",
+        title: "Closed risk",
+        severity: "medium",
+        enterprise_risk_category: "Information Security",
+        impact_level: "medium",
+        residual_score: 20,
+        status: "closed",
+        closed_at: new Date(),
+      },
+    ]);
+
+    await Response.create([
+      {
+        workspace_id: workspaceId,
+        assessment_id: assessmentId,
+        control_id: "SC-01",
+        question_text: "Q1?",
+        response_value: "yes",
+        evidence: [
+          {
+            file_key: "demo/key",
+            filename: "evidence.pdf",
+            mime: "application/pdf",
+            size: 100,
+            uploaded_at: new Date(),
+            uploaded_by: businessOwnerId,
+          },
+        ],
+      },
+      {
+        workspace_id: workspaceId,
+        assessment_id: assessmentId,
+        control_id: "SC-02",
+        question_text: "Q2?",
+        response_value: "no",
+        evidence: [],
+      },
+    ]);
+  });
+
+  afterAll(async () => {
+    await Promise.all([
+      Workspace.deleteOne({ _id: workspaceId }),
+      Vendor.deleteMany({ workspace_id: workspaceId }),
+      Engagement.deleteMany({ workspace_id: workspaceId }),
+      Assessment.deleteMany({ workspace_id: workspaceId }),
+      Risk.deleteMany({ workspace_id: workspaceId }),
+      Response.deleteMany({ workspace_id: workspaceId }),
+    ]);
+    await mongoose.disconnect();
+  });
+
+  it("computes inherent vs residual, open risk severity, and CAP status scoped to one vendor only", async () => {
+    const result = await getVendorScorecard(
+      { workspaceId },
+      vendorId.toString(),
+    );
+
+    expect(result.inherent_score).toBe(80);
+    expect(result.residual_total).toBe(40); // only the open risk; closed risk excluded
+    expect(result.reduction_percent).toBe(50); // (80-40)/80
+    expect(result.open_risk_by_severity.high).toBe(1);
+    expect(result.open_risk_by_severity.critical).toBe(0); // other vendor's risk excluded
+    expect(result.cap_tasks.overdue).toBe(1);
+  });
+
+  it("computes evidence coverage and flags the already-overdue next_review_due", async () => {
+    const result = await getVendorScorecard(
+      { workspaceId },
+      vendorId.toString(),
+    );
+
+    expect(result.evidence_coverage_percent).toBe(50); // 1 of 2 answered responses
+    expect(result.next_review_due).not.toBeNull();
+    expect(result.reassessment_overdue).toBe(true);
+    expect(result.assessment_history).toHaveLength(1);
+    expect(result.assessment_history[0]!.status).toBe("completed");
   });
 });

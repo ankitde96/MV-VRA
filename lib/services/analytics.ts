@@ -29,7 +29,7 @@ import { toObjectId, type TenantContext } from "@/lib/tenant/context";
  */
 
 const RISK_SEVERITIES = ["critical", "high", "medium", "low"] as const;
-type RiskSeverityKey = (typeof RISK_SEVERITIES)[number];
+export type RiskSeverityKey = (typeof RISK_SEVERITIES)[number];
 
 export interface RiskAgingBucket {
   bucket: "0-30" | "31-60" | "61-90" | "90+";
@@ -100,9 +100,13 @@ function average(values: number[]): number | null {
 /**
  * Single-workspace KRI/KPI aggregate — mirrors `getDashboardSummary()`'s `Promise.all`
  * aggregation pattern (`lib/services/dashboard.ts`), scoped to the caller's current
- * workspace. Consumed by the Phase C dashboard rebuild and the Phase E per-vendor
- * scorecard (vendor-scoped queries are the same shape, just with an added `vendor_id`
- * match — no separate function needed for that).
+ * workspace. Consumed by the Phase C dashboard rebuild. Phase E's per-vendor scorecard
+ * (`getVendorScorecard()`, below) turned out to need its own function rather than an added
+ * `vendor_id` filter here — several of this function's fields (review coverage, assessment
+ * throughput trend) are portfolio-wide by definition and have no vendor-scoped equivalent,
+ * so bolting a vendor filter onto this one would have produced a function with fields that
+ * silently don't mean what their name says once scoped. Corrected here rather than left as
+ * a stale comment once the real shape was known.
  */
 export async function getWorkspaceAnalytics(
   ctx: TenantContext,
@@ -757,4 +761,181 @@ export async function getRollupAnalyticsSummary(
   }
 
   return { workspaces };
+}
+
+export interface VendorScorecard {
+  inherent_score: number | null;
+  residual_total: number;
+  reduction_percent: number | null;
+  open_risk_by_severity: Record<RiskSeverityKey, number>;
+  cap_tasks: { open: number; overdue: number; closed: number };
+  assessment_history: Array<{
+    assessment_id: string;
+    status: string;
+    template_version: number;
+    assigned_at: string | null;
+    submitted_at: string | null;
+    reviewed_at: string | null;
+  }>;
+  evidence_coverage_percent: number | null;
+  next_review_due: string | null;
+  reassessment_overdue: boolean;
+}
+
+/**
+ * Per-vendor risk scorecard — UI Revamp Round 2 Phase E (`docs/UI-REVAMP-2-PLAN.md`). Not a
+ * `vendor_id` filter bolted onto `getWorkspaceAnalytics()` (see that function's comment) —
+ * every field here is genuinely vendor-scoped, most recent-engagement-scoped where a vendor
+ * could in principle have more than one (inherent/residual pairing, next_review_due).
+ */
+export async function getVendorScorecard(
+  ctx: TenantContext,
+  vendorId: string,
+): Promise<VendorScorecard> {
+  await dbConnect();
+  const workspaceId = toObjectId(ctx.workspaceId);
+  const vendorObjectId = toObjectId(vendorId);
+  const now = new Date();
+
+  const [
+    latestEngagement,
+    openSeverityCounts,
+    capTaskRisks,
+    assessments,
+    responseRows,
+    latestCompletedAssessment,
+  ] = await Promise.all([
+    Engagement.findOne({ workspace_id: workspaceId, vendor_id: vendorObjectId })
+      .sort({ created_at: -1 })
+      .select("inherent_score")
+      .lean(),
+    Risk.aggregate([
+      {
+        $match: {
+          workspace_id: workspaceId,
+          vendor_id: vendorObjectId,
+          status: { $ne: "closed" },
+        },
+      },
+      { $group: { _id: "$severity", count: { $sum: 1 } } },
+    ]),
+    Risk.find({ workspace_id: workspaceId, vendor_id: vendorObjectId })
+      .select("cap_tasks")
+      .lean(),
+    Assessment.find({ workspace_id: workspaceId, vendor_id: vendorObjectId })
+      .select("status template_version assigned_at submitted_at reviewed_at")
+      .sort({ created_at: -1 })
+      .lean(),
+    Response.aggregate([
+      {
+        $match: { workspace_id: workspaceId, response_value: { $ne: null } },
+      },
+      {
+        $lookup: {
+          from: "assessments",
+          localField: "assessment_id",
+          foreignField: "_id",
+          as: "assessment",
+        },
+      },
+      { $unwind: "$assessment" },
+      { $match: { "assessment.vendor_id": vendorObjectId } },
+      {
+        $group: {
+          _id: null,
+          answered: { $sum: 1 },
+          answered_with_evidence: {
+            $sum: { $cond: [{ $gt: [{ $size: "$evidence" }, 0] }, 1, 0] },
+          },
+        },
+      },
+    ]),
+    Assessment.findOne({
+      workspace_id: workspaceId,
+      vendor_id: vendorObjectId,
+      status: "completed",
+      next_review_due: { $ne: null },
+    })
+      .sort({ reviewed_at: -1 })
+      .select("next_review_due")
+      .lean(),
+  ]);
+
+  const residualRows = await Risk.find({
+    workspace_id: workspaceId,
+    vendor_id: vendorObjectId,
+  })
+    .select("residual_score status")
+    .lean();
+  const residualTotal = residualRows
+    .filter((r) => r.status !== "closed")
+    .reduce((sum, r) => sum + r.residual_score, 0);
+
+  const inherentScore = latestEngagement?.inherent_score?.total ?? null;
+  const reductionPercent =
+    inherentScore != null && inherentScore > 0
+      ? ((inherentScore - residualTotal) / inherentScore) * 100
+      : null;
+
+  const openRiskBySeverity: Record<RiskSeverityKey, number> = {
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+  };
+  for (const row of openSeverityCounts as { _id: string; count: number }[]) {
+    if (row._id in openRiskBySeverity) {
+      openRiskBySeverity[row._id as RiskSeverityKey] = row.count;
+    }
+  }
+
+  const capTasks = { open: 0, overdue: 0, closed: 0 };
+  for (const risk of capTaskRisks as {
+    cap_tasks: { status: string }[];
+  }[]) {
+    for (const task of risk.cap_tasks) {
+      if (task.status === "closed") capTasks.closed += 1;
+      else if (task.status === "overdue") capTasks.overdue += 1;
+      else capTasks.open += 1;
+    }
+  }
+
+  const assessmentHistory = (
+    assessments as Array<{
+      _id: Types.ObjectId;
+      status: string;
+      template_version: number;
+      assigned_at: Date | null;
+      submitted_at: Date | null;
+      reviewed_at: Date | null;
+    }>
+  ).map((a) => ({
+    assessment_id: a._id.toString(),
+    status: a.status,
+    template_version: a.template_version,
+    assigned_at: a.assigned_at?.toISOString() ?? null,
+    submitted_at: a.submitted_at?.toISOString() ?? null,
+    reviewed_at: a.reviewed_at?.toISOString() ?? null,
+  }));
+
+  const evidenceRow = (
+    responseRows as { answered: number; answered_with_evidence: number }[]
+  )[0];
+  const evidenceCoveragePercent = evidenceRow
+    ? (evidenceRow.answered_with_evidence / evidenceRow.answered) * 100
+    : null;
+
+  const nextReviewDue = latestCompletedAssessment?.next_review_due ?? null;
+
+  return {
+    inherent_score: inherentScore,
+    residual_total: residualTotal,
+    reduction_percent: reductionPercent,
+    open_risk_by_severity: openRiskBySeverity,
+    cap_tasks: capTasks,
+    assessment_history: assessmentHistory,
+    evidence_coverage_percent: evidenceCoveragePercent,
+    next_review_due: nextReviewDue?.toISOString() ?? null,
+    reassessment_overdue: nextReviewDue != null && nextReviewDue < now,
+  };
 }

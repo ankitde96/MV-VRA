@@ -23,6 +23,62 @@
 
 ---
 
+## [2026-08-18] 032 — UI Revamp Round 2, Phase E: per-vendor risk scorecard, a `getWorkspaceAnalytics()`-vs-vendor-scope reconsideration, and a real severity-color bug caught live
+
+**Decision:** Built the per-vendor risk scorecard `DESIGN-SYSTEM.md` §4 spec'd for Round 1
+Phase 3 (`ScoreBreakdown`) and never built, on `app/(internal)/vendors/[id]/page.tsx`.
+
+1. New `getVendorScorecard(ctx, vendorId)` in `lib/services/analytics.ts` — **not** a
+   `vendor_id` filter added to `getWorkspaceAnalytics()`, despite that function's own
+   comment (Phase B) claiming that would be enough. Corrected once actually attempted:
+   several `getWorkspaceAnalytics()` fields (review coverage, assessment throughput trend)
+   are portfolio-wide by definition and have no vendor-scoped equivalent — forcing a vendor
+   filter onto that function would have produced fields whose name no longer matched their
+   scope. `getWorkspaceAnalytics()`'s doc comment is corrected in the same commit, not left
+   stale.
+2. New components: `ScoreBreakdown` (inherent vs residual vs reduction%, open risk severity
+   counts), `AssessmentHistoryList` (newest-first, links to each assessment).
+3. **A real bug caught by live browser verification, not assumed**: `residual_total` sums
+   every open risk's own `residual_score`, so with multiple concurrent open risks it can
+   legitimately exceed a vendor's single-scalar `inherent_score` — the demo vendor rendered
+   "Reduction: -26%". The first build hardcoded that figure to `text-risk-low` (green)
+   regardless of sign, meaning a vendor whose carried risk had _grown past baseline_ would
+   have displayed as if it had improved. Fixed: green only when `reductionPercent > 0`, red
+   (`text-risk-critical`) otherwise, neutral when `null` (no inherent score on file).
+
+**Context:** `docs/UI-REVAMP-2-PLAN.md` Phase E. `DESIGN-SYSTEM.md` §4 named
+`ScoreBreakdown` for Round 1 Phase 3 with the explicit requirement "the score must be
+explainable, not just displayed" — this phase is the first time that requirement is
+actually met anywhere in the app.
+
+**Rationale:** The sign-based color rule reuses the same "risk color must communicate the
+right thing" discipline that governs the locked severity palette (§2/§3, DECISIONS.md 028) — a stat card's color is itself a risk signal here, so it must follow the same
+correctness bar as a severity badge, not just inherit a color because the metric is
+usually positive. Splitting `getVendorScorecard()` from `getWorkspaceAnalytics()` follows
+the same "don't force a shape that doesn't fit" judgment as Phase D's `WorkspaceKriSummary`
+extension — reuse where the shape genuinely matches, a new function where it doesn't.
+
+**Alternatives rejected:**
+
+- _Clamp `reductionPercent` at 0% instead of showing negative values_ — rejected; hiding
+  that a vendor's risk has grown past its inherent baseline is exactly the kind of
+  "score isn't explainable" gap §4 exists to close. A risk analyst needs to see -26%, not a
+  floor-clamped 0%.
+- _Force `getWorkspaceAnalytics()` to accept an optional `vendorId` filter_ — rejected after
+  actually attempting it (see decision 1) — the mismatch between "workspace-wide by
+  definition" fields and a vendor-scoped call site isn't a filter problem, it's a different
+  function.
+
+**Consequences:** Any future reader of `getWorkspaceAnalytics()`'s doc comment gets the
+corrected reasoning, not the Phase B guess. `ScoreBreakdown`'s reduction-percent color logic
+is the reference pattern for any future component computing a derived "is this good or bad"
+percentage from open-ended user data — check the sign, don't assume the common case.
+
+**Decided by:** Claude Sonnet 5 (`claude-sonnet-5`), implementing Phase E of
+`docs/UI-REVAMP-2-PLAN.md`.
+
+---
+
 ## [2026-08-18] 031 — UI Revamp Round 2, Phase D: executive roll-up gets its two missing DESIGN-SYSTEM.md §5 charts; a real label-collision caught by live verification, fixed by orientation, not a workaround
 
 **Decision:** Built the two roll-up charts `DESIGN-SYSTEM.md` §5 specified in Round 1 but

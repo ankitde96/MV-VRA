@@ -76,8 +76,18 @@ fixed a real label-collision bug (CapAgeBucketChart's workspace names overlapped
 in vertical orientation — switched to horizontal, DECISIONS.md 031). No schema/auth/test
 regressions — 202/202 tests, npm run verify clean.
 
-Phase E (per-vendor risk scorecard) next — no schema change expected, its own Active-plan
-note if that changes.
+Phase E (per-vendor risk scorecard) — DONE. app/(internal)/vendors/[id]/page.tsx: PageHeader
++ RiskTierBadge, ScoreBreakdown (inherent/residual/reduction% + open-severity counts),
+AssessmentHistoryList, 3 glass tiles (reassessment due, CAP tasks, evidence coverage). New
+getVendorScorecard() in analytics.ts (a real new function, not a filter on
+getWorkspaceAnalytics() — see DECISIONS.md 032 for why). New components: score-breakdown.tsx,
+assessment-history-list.tsx. Verified live in Chrome light+dark; caught and fixed a real
+bug — reduction% was hardcoded green regardless of sign, but residual can legitimately
+exceed inherent with multiple open risks (DECISIONS.md 032). 204/204 tests (2 new), npm run
+verify clean.
+
+Phase F (portal polish) next — restrained scope per docs/UI-REVAMP-2-PLAN.md's own
+guardrail (portal stays low-density, no charts/KPIs there).
 
 Dependencies: CONSTRAINTS.md #1's per-package ask is pre-approved for this round only
 (DECISIONS.md 028) — each package actually added still gets its own DECISIONS.md entry.

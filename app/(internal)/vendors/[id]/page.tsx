@@ -6,10 +6,18 @@ import { EngagementRepository } from "@/lib/repositories/engagement-repository";
 import { AssessmentRepository } from "@/lib/repositories/assessment-repository";
 import { TemplateRepository } from "@/lib/repositories/template-repository";
 import { getOffboardingView } from "@/lib/services/offboarding";
+import { getVendorScorecard } from "@/lib/services/analytics";
 import { SpocEditForm } from "@/components/spoc-edit-form";
 import { VendorDocumentUpload } from "@/components/vendor-document-upload";
 import { AssignAssessmentForm } from "@/components/assessments/assign-assessment-form";
 import { OffboardingPanel } from "@/components/offboarding/offboarding-panel";
+import { PageHeader } from "@/components/layout/page-header";
+import { StatCard } from "@/components/layout/stat-card";
+import { Card, CardContent } from "@/components/ui/card";
+import { ScoreBreakdown } from "@/components/domain/score-breakdown";
+import { AssessmentHistoryList } from "@/components/domain/assessment-history-list";
+import { RiskTierBadge } from "@/components/domain/risk-tier-badge";
+import { CalendarClock, ClipboardList, FileCheck } from "lucide-react";
 
 /**
  * PLAN.md Phase 4, spec §2.1 — SPOC management "within the vendor details page." Same
@@ -102,8 +110,8 @@ export default async function VendorDetailPage({
   );
 
   const ctx = { workspaceId: session.workspaceId };
-  const offboardingByEngagement = new Map(
-    await Promise.all(
+  const [offboardingByEngagement, scorecard] = await Promise.all([
+    Promise.all(
       engagements.map(
         async (e) =>
           [
@@ -111,17 +119,103 @@ export default async function VendorDetailPage({
             await getOffboardingView(ctx, e._id.toString()),
           ] as const,
       ),
-    ),
-  );
+    ).then((entries) => new Map(entries)),
+    getVendorScorecard(ctx, id),
+  ]);
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-foreground text-lg font-semibold">
-          {vendor.legal_name}
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">{vendor.domain}</p>
-      </div>
+      <PageHeader
+        title={vendor.legal_name}
+        description={vendor.domain}
+        actions={
+          <RiskTierBadge
+            tier={vendor.inherent_risk_tier ?? null}
+            scoringFailed={vendor.inherent_risk_tier == null}
+          />
+        }
+      />
+
+      {/* UI Revamp Round 2 Phase E (docs/UI-REVAMP-2-PLAN.md, DECISIONS.md 028/029) — the
+          per-vendor risk scorecard §4 spec'd for Round 1 Phase 3 and never built. */}
+      <section className="space-y-4">
+        <h2 className="text-foreground text-sm font-semibold">
+          Risk scorecard
+        </h2>
+        <ScoreBreakdown
+          inherentScore={scorecard.inherent_score}
+          residualTotal={scorecard.residual_total}
+          reductionPercent={scorecard.reduction_percent}
+          openRiskBySeverity={scorecard.open_risk_by_severity}
+        />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <Card className="glass-panel">
+            <CardContent className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-muted-foreground text-xs font-medium uppercase">
+                  Reassessment due
+                </p>
+                <p
+                  className={
+                    scorecard.reassessment_overdue
+                      ? "text-risk-critical font-heading mt-1 text-2xl font-semibold"
+                      : "font-heading mt-1 text-2xl font-semibold"
+                  }
+                >
+                  {scorecard.next_review_due
+                    ? scorecard.next_review_due.slice(0, 10)
+                    : "—"}
+                </p>
+                {!scorecard.next_review_due ? (
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Not yet reviewed
+                  </p>
+                ) : scorecard.reassessment_overdue ? (
+                  <p className="text-risk-critical mt-1 text-xs">Overdue</p>
+                ) : null}
+              </div>
+              <CalendarClock
+                className={
+                  scorecard.reassessment_overdue
+                    ? "text-risk-critical size-5 shrink-0"
+                    : "text-foreground size-5 shrink-0 opacity-40"
+                }
+                aria-hidden="true"
+              />
+            </CardContent>
+          </Card>
+          <StatCard
+            label="CAP tasks"
+            value={scorecard.cap_tasks.open + scorecard.cap_tasks.overdue}
+            hint={
+              scorecard.cap_tasks.overdue > 0
+                ? `${scorecard.cap_tasks.overdue} overdue`
+                : `${scorecard.cap_tasks.closed} closed`
+            }
+            icon={<ClipboardList />}
+            tone={scorecard.cap_tasks.overdue > 0 ? "critical" : "default"}
+            glass
+          />
+          <StatCard
+            label="Evidence coverage"
+            value={Math.round(scorecard.evidence_coverage_percent ?? 0)}
+            hint={
+              scorecard.evidence_coverage_percent !== null
+                ? "% of answers with evidence attached"
+                : "No answered questions yet"
+            }
+            icon={<FileCheck />}
+            tone={
+              scorecard.evidence_coverage_percent !== null &&
+              scorecard.evidence_coverage_percent < 50
+                ? "medium"
+                : "default"
+            }
+            glass
+          />
+        </div>
+        <AssessmentHistoryList history={scorecard.assessment_history} />
+      </section>
 
       <section className="space-y-4">
         <h2 className="text-foreground text-sm font-semibold">Vendor SPOC</h2>

@@ -219,11 +219,20 @@ Each phase ends with `npm run verify` green and its own commit.
   unchanged (still useful).
 - 202/202 tests (1 new), `npm run verify` clean.
 
-### Phase E — Per-vendor risk scorecard
+### Phase E — Per-vendor risk scorecard ✅ (this session)
 
-- New panel on `app/(internal)/vendors/[id]/page.tsx`: inherent vs residual, open risks by
-  severity, assessment history timeline, evidence coverage, CAP status, reassessment due.
+- New panel on `app/(internal)/vendors/[id]/page.tsx`: inherent vs residual vs reduction%,
+  open risks by severity, assessment history timeline, evidence coverage, CAP status,
+  reassessment due.
 - Builds `ScoreBreakdown` — spec'd in §4 for Round 1 Phase 3, never built.
+- New `getVendorScorecard()` in `analytics.ts` — turned out to need its own function, not a
+  `vendor_id` filter on `getWorkspaceAnalytics()` as originally assumed here; several of
+  that function's fields are portfolio-wide by definition. `DECISIONS.md` 032.
+- Live browser verification caught a real bug: reduction% was hardcoded green regardless of
+  sign, but `residual_total` (sum of every open risk) can legitimately exceed a single-scalar
+  `inherent_score` once a vendor has several open risks — a vendor whose risk had _grown_
+  past baseline would have shown as improved. Fixed via sign-based coloring.
+- 204/204 tests (2 new), `npm run verify` clean.
 
 ### Phase F — Portal polish (restrained)
 
