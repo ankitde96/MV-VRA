@@ -59,6 +59,10 @@ export function WorkspaceSwitcher() {
     }
   }
 
+  const currentMembership = memberships.find(
+    (membership) => membership.workspace_id === currentWorkspaceId,
+  );
+
   // DESIGN-SYSTEM.md §4 (WorkspaceSwitcher): "current workspace always visible — acting in
   // the wrong tenant is a real error." A single-membership user still sees which workspace
   // they're in, just without a dropdown to switch out of (nothing to switch to).
@@ -78,8 +82,18 @@ export function WorkspaceSwitcher() {
       value={currentWorkspaceId ?? undefined}
       onValueChange={handleSwitch}
     >
-      <SelectTrigger size="sm" className="min-w-40" disabled={switching}>
-        <SelectValue placeholder="Select workspace" />
+      <SelectTrigger
+        size="sm"
+        className="w-full min-w-0 max-w-full overflow-hidden"
+        disabled={switching}
+        title={currentMembership?.workspace_name}
+      >
+        <SelectValue
+          placeholder="Select workspace"
+          className="min-w-0 overflow-hidden"
+        >
+          {currentMembership?.workspace_name}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {memberships.map((m) => (
