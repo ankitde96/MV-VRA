@@ -2,6 +2,7 @@
 
 import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,7 +48,7 @@ function LoginForm() {
     <div className="grid min-h-screen lg:grid-cols-2">
       <div
         className="hidden flex-col justify-between p-10 text-white lg:flex"
-        style={{ background: "var(--gradient-hero)" }}
+        style={{ background: "var(--ink-dark)" }}
       >
         <div className="flex items-center gap-2">
           <ShieldCheck className="size-6" aria-hidden="true" />
@@ -119,6 +120,12 @@ function LoginForm() {
             ) : null}
             {loading ? "Signing in…" : "Sign in"}
           </Button>
+          <Link
+            href="/portal/login"
+            className="block text-center text-sm font-medium text-primary hover:underline"
+          >
+            I&apos;m a vendor — sign in with a code →
+          </Link>
         </form>
       </div>
     </div>

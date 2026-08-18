@@ -36,7 +36,6 @@ export default async function RollupPage() {
       <PageHeader
         title="Executive Roll-up"
         description={`Aggregated posture across every workspace you hold a role authorized to view it in — ${result.authorized_workspace_count} of ${result.total_membership_count} memberships qualify.`}
-        aurora
       />
 
       {result.workspaces.length === 0 ? (
@@ -56,7 +55,7 @@ export default async function RollupPage() {
 
           <div className="space-y-4">
             {result.workspaces.map((w) => (
-              <RollupWorkspaceCard key={w.workspace_id} workspace={w} glass />
+              <RollupWorkspaceCard key={w.workspace_id} workspace={w} />
             ))}
           </div>
         </>

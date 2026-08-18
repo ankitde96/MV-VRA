@@ -57,7 +57,7 @@ export function RiskAgingChart({ data }: { data: RiskAgingBucket[] }) {
 
   if (!hasData) {
     return (
-      <Card className="glass-panel">
+      <Card className="rounded-lg border bg-card shadow-none">
         <CardHeader>
           <CardTitle>Risk aging</CardTitle>
         </CardHeader>
@@ -80,7 +80,7 @@ export function RiskAgingChart({ data }: { data: RiskAgingBucket[] }) {
   }
 
   return (
-    <Card className="glass-panel">
+    <Card className="rounded-lg border bg-card shadow-none">
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Risk aging</CardTitle>
         <Button

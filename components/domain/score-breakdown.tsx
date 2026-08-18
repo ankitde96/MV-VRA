@@ -22,7 +22,7 @@ export function ScoreBreakdown({
   openRiskBySeverity: Record<RiskSeverityKey, number>;
 }) {
   return (
-    <Card className="glass-panel">
+    <Card className="rounded-lg border bg-card shadow-none">
       <CardHeader>
         <CardTitle>Risk score</CardTitle>
       </CardHeader>
@@ -32,7 +32,7 @@ export function ScoreBreakdown({
             <p className="text-muted-foreground text-xs font-medium uppercase">
               Inherent
             </p>
-            <p className="font-heading mt-1 text-2xl font-semibold tabular-nums">
+            <p className="mt-1 text-2xl font-semibold tabular-nums">
               {inherentScore ?? "—"}
             </p>
           </div>
@@ -40,7 +40,7 @@ export function ScoreBreakdown({
             <p className="text-muted-foreground text-xs font-medium uppercase">
               Residual (open)
             </p>
-            <p className="font-heading mt-1 text-2xl font-semibold tabular-nums">
+            <p className="mt-1 text-2xl font-semibold tabular-nums">
               {residualTotal}
             </p>
           </div>
@@ -50,7 +50,7 @@ export function ScoreBreakdown({
             </p>
             <p
               className={cn(
-                "font-heading mt-1 text-2xl font-semibold tabular-nums",
+                "mt-1 text-2xl font-semibold tabular-nums",
                 // Real, not just cosmetic: residual_total sums every open risk's own
                 // residual_score, so with multiple concurrent open risks it can legitimately
                 // exceed a single-scalar inherent_score — a negative "reduction" means risk

@@ -50,6 +50,7 @@ export default async function VendorsPage() {
       legal_name: vendor.legal_name,
       domain: vendor.domain,
       spoc_email: vendor.spoc.spoc_email,
+      business_unit: vendor.business_unit ?? "Unassigned",
       tier: vendor.inherent_risk_tier ?? null,
       engagement_status: engagement?.status ?? null,
       lifecycle_status: vendor.lifecycle_status,

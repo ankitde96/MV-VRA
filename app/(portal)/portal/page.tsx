@@ -71,7 +71,7 @@ export default async function PortalHomePage() {
               key={assessment._id.toString()}
               href={`/portal/assessments/${assessment._id.toString()}`}
             >
-              <Card className="glass-panel-sm hover:border-primary/40 transition-colors">
+              <Card className="border bg-card hover:border-primary/40 transition-colors">
                 <CardContent className="flex items-center justify-between">
                   <div>
                     <p className="text-foreground font-medium">

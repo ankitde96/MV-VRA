@@ -40,6 +40,7 @@ const vendorSchema = new Schema(
     legal_name: { type: String, required: true },
     domain: { type: String, required: true, lowercase: true, trim: true },
     spoc: { type: spocSchema, required: true },
+    business_unit: { type: String, trim: true, default: null },
     // No default. A scoring bug must surface as a visible null tier, not a fabricated Tier
     // 3 — DECISIONS.md 008. Do not add `default: 3` here under any circumstance.
     inherent_risk_tier: { type: Number, enum: [1, 2, 3], default: null },

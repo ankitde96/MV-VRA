@@ -23,6 +23,54 @@
 
 ---
 
+## [2026-08-18] 039 — Work directly on main; branches and pull requests are opt-in
+
+**Decision:** All implementation work should be performed directly in the `main` working
+tree. Do not create a feature branch or pull request unless the project owner explicitly
+requests one for a particular task.
+
+**Context:** The project owner instructed: "keep working in the main branch, no need to
+create branch and create pull request."
+
+**Rationale:** This project uses a direct, single-owner workflow. Branch and PR ceremony is
+unnecessary overhead unless a future task specifically needs external review or isolated
+delivery.
+
+**Consequences:** Agents should confirm they are on `main` and make scoped edits there.
+This decision changes the branch/PR workflow only; it does not grant standing permission
+to commit, push, force-push, or merge. Those external-history mutations remain explicit
+user actions under `CONSTRAINTS.md` #5.
+
+**Decided by:** Project owner; recorded by Codex (GPT-5).
+
+---
+
+## [2026-08-18] 038 — Library additions are permanently pre-approved project-wide
+
+**Decision:** There is no restriction on adding or upgrading libraries anywhere in this
+project. Agents may update `package.json` without requesting per-package approval and this
+authorization is permanent across sessions, features, and implementation phases—not a
+scoped exception for the current task.
+
+**Context:** The project owner clarified: "there is no restriction on library addition in
+all of the project not just this session [the] whole project."
+
+**Rationale:** Library choice is an ordinary implementation decision. Repeated approval
+gates add friction without improving safety when additions remain reviewable in the diff,
+versioned in the lockfile, and covered by the project's verification commands.
+
+**Consequences:** `CONSTRAINTS.md` #1 now grants standing project-wide authorization.
+Agents should still prefer maintained, focused dependencies, avoid redundant packages,
+record consequential additions, and run relevant checks. Historical entries describing
+per-package or round-only approval remain accurate history but no longer govern future work.
+
+**Decided by:** Project owner; recorded by Codex (GPT-5).
+
+**Supersedes / Superseded by:** Supersedes the dependency restriction in the former
+`CONSTRAINTS.md` #1 and the round-only scope in `DECISIONS.md` 028.
+
+---
+
 ## [2026-08-18] 036 — `evidence_hint`: a dedicated schema field, not folded into question text
 
 **Decision:** `Question` (`lib/questionnaire/schema.ts`) gains a new optional field,
@@ -1962,3 +2010,20 @@ enforced by the database; storage must be abstracted to keep dev/prod parity.
 
 **Decided by:** Project owner (pre-dates this log). Entry transcribed by Claude Opus 5
 (`claude-opus-5[1m]`) on 2026-08-13 — transcription only, no rationale invented.
+
+---
+
+## [2026-08-18] 037 — Console redesign restores flat Swiss surfaces
+
+**Decision:** Supersede 028's app-wide glassmorphism. Use flat opaque cards with 1px
+borders, Geist/Geist Mono, and the confirmed placeholder MoneyView green `#00A15C`.
+Keep the locked severity, tier, and status palette unchanged.
+
+**Context:** The imported MV-VRA Console design mockup deliberately reversed 028 and the
+project owner confirmed that visual direction in `docs/features/mv-vra-console-redesign.md`.
+
+**Consequences:** Glass, aurora, grain, display-font, and gradient-hero APIs are removed.
+`Vendor.business_unit` is additive/nullable for dashboard grouping, and `/assessments`
+becomes the internal review queue while existing review authorization remains unchanged.
+
+**Decided by:** Project owner; implemented by Codex (GPT-5).

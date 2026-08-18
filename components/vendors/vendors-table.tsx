@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Building2 } from "lucide-react";
 import { DataTable } from "@/components/data-table/data-table";
@@ -13,6 +14,7 @@ export interface VendorRow {
   legal_name: string;
   domain: string;
   spoc_email: string;
+  business_unit: string;
   tier: number | null;
   engagement_status: string | null;
   lifecycle_status: string;
@@ -28,6 +30,7 @@ const columns: ColumnDef<VendorRow>[] = [
   },
   { accessorKey: "domain", header: "Domain" },
   { accessorKey: "spoc_email", header: "SPOC" },
+  { accessorKey: "business_unit", header: "Business unit" },
   {
     accessorKey: "tier",
     header: "Tier",
@@ -57,6 +60,8 @@ const columns: ColumnDef<VendorRow>[] = [
  */
 export function VendorsTable({ rows }: { rows: VendorRow[] }) {
   const router = useRouter();
+  const [tier, setTier] = useState("all");
+  const [lifecycle, setLifecycle] = useState("all");
 
   if (rows.length === 0) {
     return (
@@ -68,13 +73,71 @@ export function VendorsTable({ rows }: { rows: VendorRow[] }) {
     );
   }
 
+  const filtered = rows.filter(
+    (row) =>
+      (tier === "all" ||
+        (tier === "unscored"
+          ? row.tier === null
+          : row.tier === Number(tier))) &&
+      (lifecycle === "all" || row.lifecycle_status === lifecycle),
+  );
+
+  const chips = (
+    values: Array<[string, string]>,
+    selected: string,
+    onSelect: (value: string) => void,
+  ) => (
+    <div className="flex flex-wrap gap-1" role="group">
+      {values.map(([value, label]) => (
+        <button
+          key={value}
+          type="button"
+          onClick={() => onSelect(value)}
+          className={
+            selected === value
+              ? "rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+              : "rounded-md border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
+          }
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
-    <DataTable
-      columns={columns}
-      data={rows}
-      searchKey="legal_name"
-      searchPlaceholder="Search vendors..."
-      onRowClick={(row) => router.push(`/vendors/${row.id}`)}
-    />
+    <div className="space-y-3">
+      <div className="flex flex-col gap-2 rounded-lg border bg-card p-3">
+        {chips(
+          [
+            ["all", "All tiers"],
+            ["1", "Tier 1"],
+            ["2", "Tier 2"],
+            ["3", "Tier 3"],
+            ["unscored", "Unscored"],
+          ],
+          tier,
+          setTier,
+        )}
+        {chips(
+          [
+            ["all", "All lifecycle"],
+            ["prospective", "Prospective"],
+            ["active", "Active"],
+            ["offboarding", "Offboarding"],
+            ["terminated", "Terminated"],
+          ],
+          lifecycle,
+          setLifecycle,
+        )}
+      </div>
+      <DataTable
+        columns={columns}
+        data={filtered}
+        searchKey="legal_name"
+        searchPlaceholder="Search vendors..."
+        onRowClick={(row) => router.push(`/vendors/${row.id}`)}
+      />
+    </div>
   );
 }

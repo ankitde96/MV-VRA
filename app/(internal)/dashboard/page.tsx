@@ -12,7 +12,7 @@ import { getWorkspaceAnalytics } from "@/lib/services/analytics";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/layout/stat-card";
 import { KriListCard } from "@/components/layout/kri-list-card";
-import { TierDistributionChart } from "@/components/charts/tier-distribution-chart";
+import { VendorsByBusinessUnitChart } from "@/components/charts/vendors-by-business-unit-chart";
 import { RiskTrendChart } from "@/components/charts/risk-trend-chart";
 import { RiskAgingChart } from "@/components/charts/risk-aging-chart";
 import { ResidualExposureChart } from "@/components/charts/residual-exposure-chart";
@@ -43,7 +43,6 @@ export default async function DashboardPage() {
       <PageHeader
         title="Dashboard"
         description="Vendor risk posture at a glance."
-        aurora
       />
 
       {/* Core counters — unchanged from Round 1, still the fastest scan of headline state. */}
@@ -52,7 +51,6 @@ export default async function DashboardPage() {
           label="Vendors"
           value={summary.vendor_count}
           icon={<Building2 />}
-          glass
         />
         <StatCard
           label="Tier 1"
@@ -64,14 +62,12 @@ export default async function DashboardPage() {
               ? `${tier1Pct.toFixed(0)}% of portfolio`
               : undefined
           }
-          glass
         />
         <StatCard
           label="Open risks"
           value={summary.open_risk_count}
           icon={<ShieldAlert />}
           tone={summary.open_risk_count > 0 ? "high" : "default"}
-          glass
         />
         <StatCard
           label="Overdue CAPs"
@@ -83,14 +79,12 @@ export default async function DashboardPage() {
               ? `oldest ${analytics.kri.max_overdue_cap_days}d overdue`
               : undefined
           }
-          glass
         />
         <StatCard
           label="Awaiting review"
           value={summary.assessments_awaiting_review}
           icon={<ClipboardCheck />}
           tone={summary.assessments_awaiting_review > 0 ? "medium" : "default"}
-          glass
         />
       </div>
 
@@ -111,7 +105,6 @@ export default async function DashboardPage() {
           }
           icon={<Hourglass />}
           tone="low"
-          glass
         />
         <StatCard
           label="Reassessment overdue"
@@ -122,14 +115,12 @@ export default async function DashboardPage() {
               ? "critical"
               : "default"
           }
-          glass
         />
         <StatCard
           label="Portal stalls"
           value={analytics.kri.portal_stall.length}
           icon={<Hourglass />}
           tone={analytics.kri.portal_stall.length > 0 ? "medium" : "default"}
-          glass
         />
       </div>
 
@@ -140,7 +131,7 @@ export default async function DashboardPage() {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <RiskTrendChart data={summary.risk_posture_trend} />
-        <TierDistributionChart data={summary.vendors_by_tier} />
+        <VendorsByBusinessUnitChart data={summary.vendors_by_business_unit} />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">

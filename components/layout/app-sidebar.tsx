@@ -12,6 +12,7 @@ import {
   Users,
   Boxes,
   ShieldCheck,
+  ClipboardCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -54,7 +55,10 @@ const NAV_GROUPS: Array<{
   },
   {
     label: "Assessments",
-    items: [{ href: "/templates", label: "Templates", icon: FileStack }],
+    items: [
+      { href: "/assessments", label: "Review queue", icon: ClipboardCheck },
+      { href: "/templates", label: "Templates", icon: FileStack },
+    ],
   },
   {
     label: "Risk",

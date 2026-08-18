@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Lexend, JetBrains_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -9,18 +9,12 @@ import "./globals.css";
 // proven legibility in dense tables, zero blast radius to swap. Lexend is layered in as a
 // separate --font-display, used only for hero/page-header/KPI display numerals (UI Revamp
 // Round 2) — the doc's own §3 names Lexend as the accessibility-oriented alternative.
-const inter = Inter({
+const geist = Geist({
   variable: "--font-sans",
   subsets: ["latin"],
 });
 
-const lexend = Lexend({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
+const geistMono = Geist_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
 });
@@ -34,7 +28,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${lexend.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${geist.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">

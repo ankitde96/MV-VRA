@@ -14,59 +14,30 @@ export function PageHeader({
   description,
   actions,
   breadcrumb,
-  gradient = false,
-  aurora = false,
   className,
 }: {
   title: string;
   description?: string;
   actions?: ReactNode;
   breadcrumb?: ReactNode;
-  gradient?: boolean;
-  aurora?: boolean;
   className?: string;
 }) {
-  const bold = gradient || aurora;
   return (
     <div
       className={cn(
-        "relative mb-6 flex flex-col gap-4 overflow-hidden sm:flex-row sm:items-end sm:justify-between",
-        bold &&
-          "-mx-6 -mt-6 mb-8 rounded-b-xl px-6 pt-6 pb-8 text-white [background:var(--gradient-hero)] sm:items-end",
+        "mb-6 flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between",
         className,
       )}
     >
-      {aurora ? (
-        <>
-          <div
-            className="aurora-backdrop pointer-events-none absolute inset-0"
-            aria-hidden="true"
-          />
-          <div
-            className="grain-overlay pointer-events-none absolute inset-0"
-            aria-hidden="true"
-          />
-        </>
-      ) : null}
-      <div className="relative min-w-0 space-y-1">
+      <div className="min-w-0 space-y-1">
         {breadcrumb}
         <h1
-          className={cn(
-            "font-heading text-lg font-semibold tracking-tight",
-            bold ? "text-2xl text-white" : "text-foreground",
-          )}
+          className={cn("text-xl font-semibold tracking-tight text-foreground")}
         >
           {title}
         </h1>
         {description ? (
-          <p
-            className={cn(
-              "text-sm",
-              bold ? "text-white/80" : "text-muted-foreground",
-            )}
-          >
-            {description}
-          </p>
+          <p className={cn("text-sm text-muted-foreground")}>{description}</p>
         ) : null}
       </div>
       {actions ? (

@@ -51,7 +51,7 @@ export function ResidualExposureChart({
 
   if (data.length === 0) {
     return (
-      <Card className="glass-panel">
+      <Card className="rounded-lg border bg-card shadow-none">
         <CardHeader>
           <CardTitle>Residual exposure trend</CardTitle>
         </CardHeader>
@@ -74,7 +74,7 @@ export function ResidualExposureChart({
   }
 
   return (
-    <Card className="glass-panel">
+    <Card className="rounded-lg border bg-card shadow-none">
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Residual exposure trend</CardTitle>
         <Button

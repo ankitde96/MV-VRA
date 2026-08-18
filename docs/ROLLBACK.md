@@ -34,8 +34,15 @@ For anything smaller, `git diff` and `git restore` are sufficient.
 Overwrite this block at the start of each risky change. One at a time.
 
 ```
-UI Revamp Round 2 — glassmorphism visual layer + KPI/KRI analytics (2026-08-18, in
-progress). See docs/UI-REVAMP-2-PLAN.md and DECISIONS.md 028/029.
+MV-VRA Console redesign (2026-08-18, in progress).
+Plan: docs/features/mv-vra-console-redesign.md.
+Safe baseline: 4556945b0c9419f9e13cf833e3e438ae42e05eb8.
+Schema change is additive and nullable: Vendor.business_unit. Primary rollback surface:
+app/globals.css, app/layout.tsx, app/(internal)/layout.tsx,
+app/(portal)/portal/layout.tsx. Full affected-file list lives in the feature plan.
+
+Prior active plan (closed):
+UI Revamp Round 2 — glassmorphism visual layer + KPI/KRI analytics (2026-08-18).
 
 Safe baseline: commit 0ea5688 (origin/main) — first real rollback point this project has
 ever had. `git diff 0ea5688` / `git restore --source=0ea5688 -- <file>` both work now.
@@ -103,6 +110,9 @@ F polish/cleanup) is complete. Next real work is outside this plan's scope.
 Dependencies: CONSTRAINTS.md #1's per-package ask is pre-approved for this round only
 (DECISIONS.md 028) — each package actually added still gets its own DECISIONS.md entry.
 None added yet (Phases A/B were CSS + Mongoose schema only).
+
+Historical note: `DECISIONS.md` 038 later superseded this round-only restriction with
+permanent project-wide authorization for library additions.
 
 Re-check after any revert attempt: npm run verify all green, 201 tests still pass, risk
 badges/table cells render identically to pre-Round-2 (flat, no glass — the one thing that

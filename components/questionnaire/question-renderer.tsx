@@ -27,13 +27,16 @@ export function QuestionRenderer({
   value,
   onChange,
   disabled,
+  size = "default",
 }: {
   question: Question;
   value: AnswerValue;
   onChange: (value: AnswerValue) => void;
   disabled?: boolean;
+  size?: "default" | "portal";
 }) {
   const id = `q_${question.control_id}`;
+  const portalClass = size === "portal" ? "min-h-11 text-base" : undefined;
 
   switch (question.type) {
     case "text":
@@ -43,6 +46,7 @@ export function QuestionRenderer({
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
+          className={portalClass}
         />
       );
 
@@ -53,6 +57,7 @@ export function QuestionRenderer({
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
+          className={portalClass}
         />
       );
 
@@ -66,6 +71,7 @@ export function QuestionRenderer({
             onChange(e.target.value === "" ? null : Number(e.target.value))
           }
           disabled={disabled}
+          className={portalClass}
         />
       );
 
@@ -77,6 +83,7 @@ export function QuestionRenderer({
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
+          className={portalClass}
         />
       );
 
@@ -87,7 +94,11 @@ export function QuestionRenderer({
             value === null || value === undefined ? undefined : String(value)
           }
           onValueChange={(v) => onChange(v === "true")}
-          className="flex flex-row gap-4"
+          className={
+            size === "portal"
+              ? "grid grid-cols-2 gap-3 [&_label]:min-h-11 [&_label]:rounded-lg [&_label]:border [&_label]:px-4"
+              : "flex flex-row gap-4"
+          }
           disabled={disabled}
         >
           <label className="flex items-center gap-2 text-sm">
@@ -108,7 +119,11 @@ export function QuestionRenderer({
           onValueChange={(v) => onChange(v as string)}
           disabled={disabled}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger
+            className={
+              size === "portal" ? "min-h-11 w-full text-base" : "w-full"
+            }
+          >
             <SelectValue placeholder="Select…" />
           </SelectTrigger>
           <SelectContent>

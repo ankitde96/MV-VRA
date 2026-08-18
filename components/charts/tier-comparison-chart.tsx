@@ -47,7 +47,7 @@ export function TierComparisonChart({
     .map((w) => ({ name: w.workspace_name, ...w.vendors_by_tier }));
 
   return (
-    <Card className="glass-panel">
+    <Card className="rounded-lg border bg-card shadow-none">
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Vendors per tier, per workspace</CardTitle>
         <Button

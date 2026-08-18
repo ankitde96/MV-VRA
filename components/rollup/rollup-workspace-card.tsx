@@ -22,15 +22,13 @@ import type { WorkspaceRollup } from "@/lib/services/executive-rollup";
  */
 export function RollupWorkspaceCard({
   workspace,
-  glass = false,
 }: {
   workspace: WorkspaceRollup;
-  glass?: boolean;
 }) {
   const [showTable, setShowTable] = useState(false);
 
   return (
-    <Card className={glass ? "glass-panel" : "shadow-(--shadow-card)"}>
+    <Card className="rounded-lg border bg-card shadow-none">
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle>{workspace.workspace_name}</CardTitle>
         <div className="flex items-center gap-2">

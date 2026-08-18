@@ -27,7 +27,7 @@ export function AssessmentHistoryList({
   }>;
 }) {
   return (
-    <Card className="glass-panel">
+    <Card className="rounded-lg border bg-card shadow-none">
       <CardHeader>
         <CardTitle>Assessment history</CardTitle>
       </CardHeader>

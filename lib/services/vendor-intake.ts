@@ -89,6 +89,7 @@ export async function submitVendorIntake(
           legal_name: input.legal_name,
           domain: input.domain,
           spoc: input.spoc,
+          business_unit: input.business_unit || null,
           inherent_risk_tier: tiering.status === "tiered" ? tiering.tier : null,
           lifecycle_status: "prospective",
         },

@@ -63,7 +63,7 @@ export function CapAgeBucketChart({
 
   if (!hasData) {
     return (
-      <Card className="glass-panel">
+      <Card className="rounded-lg border bg-card shadow-none">
         <CardHeader>
           <CardTitle>Overdue CAPs by age</CardTitle>
         </CardHeader>
@@ -85,7 +85,7 @@ export function CapAgeBucketChart({
   }
 
   return (
-    <Card className="glass-panel">
+    <Card className="rounded-lg border bg-card shadow-none">
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Overdue CAPs by age</CardTitle>
         <Button

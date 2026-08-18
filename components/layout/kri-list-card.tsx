@@ -23,7 +23,6 @@ export function KriListCard({
   emptyDescription,
   icon: Icon,
   items,
-  glass = true,
 }: {
   title: string;
   emptyTitle: string;
@@ -36,7 +35,6 @@ export function KriListCard({
     badge: string;
     badgeTone?: "critical" | "high" | "medium" | "low" | "neutral";
   }>;
-  glass?: boolean;
 }) {
   const badgeToneClass: Record<string, string> = {
     critical: "text-risk-critical bg-risk-critical-surface border-transparent",
@@ -47,7 +45,7 @@ export function KriListCard({
   };
 
   return (
-    <Card className={glass ? "glass-panel" : "shadow-(--shadow-card)"}>
+    <Card className="rounded-lg border bg-card shadow-none">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
       </CardHeader>

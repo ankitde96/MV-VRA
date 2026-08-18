@@ -37,14 +37,10 @@ portal gets designed for someone who did not ask to be there.
 
 ## 2. Style direction
 
-> **AMENDED 2026-08-18 — see `DECISIONS.md` 028 (supersedes 025).** The project owner asked
-> for a full modern-SaaS glass treatment app-wide — **Glassmorphism is no longer rejected.**
-> Glass surfaces, aurora-mesh backdrops, and depth are now sanctioned across page chrome,
-> hero, KPI/stat cards, modals, popovers, and navigation. The one boundary that does not
-> move: **risk-semantic surfaces stay flat, solid, high-contrast** — severity/tier/status
-> badges and any table cell carrying a risk color. Colorblind reviewers make Tier-1 calls off
-> these; frosting them degrades the one signal that must stay unambiguous. See §3's Glass
-> system tokens and `docs/UI-REVAMP-2-PLAN.md`.
+> **AMENDED 2026-08-18 — see `DECISIONS.md` 037 (supersedes 028).** The confirmed Console
+> redesign restores the original Swiss discipline across the product: flat opaque surfaces,
+> 1px borders, 8px card radii, no aurora/grain/glass treatment. Risk-semantic colors remain
+> unchanged. The action palette is MoneyView green (`#00A15C`) and typography is Geist.
 >
 > **AMENDED 2026-08-17 — see `DECISIONS.md` 025.** (Partially superseded by 028 above, kept
 > for history.) The project owner asked for a bolder, "catchy" enterprise-SaaS treatment

@@ -13,6 +13,8 @@ export interface TemplateRow {
   template_key: string;
   version: number;
   status: string;
+  sections: number;
+  questions: number;
 }
 
 const columns: ColumnDef<TemplateRow>[] = [
@@ -22,6 +24,8 @@ const columns: ColumnDef<TemplateRow>[] = [
     cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
   },
   { accessorKey: "template_key", header: "Template key" },
+  { accessorKey: "sections", header: "Sections" },
+  { accessorKey: "questions", header: "Questions" },
   {
     accessorKey: "version",
     header: "Latest version",

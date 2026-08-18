@@ -60,9 +60,32 @@ export function AssessmentAnswerForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [currentSection, setCurrentSection] = useState(0);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const visibility = computeVisibility(schema, answers);
+  const visibleSections = schema.sections
+    .map((section) => ({
+      ...section,
+      questions: section.questions.filter((q) => visibility.get(q.control_id)),
+    }))
+    .filter((section) => section.questions.length > 0);
+  const activeSection =
+    visibleSections[
+      Math.min(currentSection, Math.max(visibleSections.length - 1, 0))
+    ];
+  const visibleQuestions = visibleSections.flatMap(
+    (section) => section.questions,
+  );
+  const answeredCount = visibleQuestions.filter((question) => {
+    const value = answers[question.control_id];
+    return (
+      value !== null &&
+      value !== undefined &&
+      value !== "" &&
+      (!Array.isArray(value) || value.length > 0)
+    );
+  }).length;
 
   const saveAnswer = useCallback(
     (controlId: string, value: AnswersMap[string]) => {
@@ -150,6 +173,41 @@ export function AssessmentAnswerForm({
 
   return (
     <div className="space-y-8">
+      <div className="rounded-lg border bg-card p-4">
+        <div
+          className="mb-3 flex flex-wrap gap-2"
+          aria-label="Assessment sections"
+        >
+          {visibleSections.map((section, index) => (
+            <button
+              key={section.id}
+              type="button"
+              onClick={() => setCurrentSection(index)}
+              className={
+                index === currentSection
+                  ? "rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                  : index < currentSection
+                    ? "rounded-full bg-brand-tint px-3 py-1.5 text-xs font-semibold text-primary"
+                    : "rounded-full border px-3 py-1.5 text-xs text-muted-foreground"
+              }
+            >
+              {index + 1}. {section.title}
+            </button>
+          ))}
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full bg-primary transition-[width]"
+            style={{
+              width: `${visibleQuestions.length ? (answeredCount / visibleQuestions.length) * 100 : 0}%`,
+            }}
+          />
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {answeredCount} of {visibleQuestions.length} visible questions
+          answered
+        </p>
+      </div>
       {submitError ? (
         <Alert variant="destructive">
           <AlertDescription>{submitError}</AlertDescription>
@@ -164,71 +222,95 @@ export function AssessmentAnswerForm({
         </Alert>
       ) : null}
 
-      {schema.sections.map((section) => {
-        const visibleQuestions = section.questions.filter((q) =>
-          visibility.get(q.control_id),
-        );
-        if (visibleQuestions.length === 0) return null;
-
-        return (
-          <div key={section.id} className="space-y-4">
-            <h2 className="text-foreground text-sm font-semibold">
-              {section.title}
+      {activeSection ? (
+        <div key={activeSection.id} className="space-y-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-primary">
+              Section {currentSection + 1} of {visibleSections.length}
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-foreground">
+              {activeSection.title}
             </h2>
-            {visibleQuestions.map((question) => (
-              <div key={question.control_id} className="space-y-2">
-                <QuestionLabel question={question} />
-                {question.type !== "file" ? (
-                  <QuestionRenderer
-                    question={question}
-                    value={answers[question.control_id]}
-                    onChange={(value) =>
-                      handleAnswerChange(question.control_id, value)
-                    }
-                    disabled={isReadOnly}
-                  />
-                ) : null}
-                {savingControlIds.has(question.control_id) ? (
-                  <span className="text-muted-foreground text-sm">Saving…</span>
-                ) : savedAtByControl[question.control_id] ? (
-                  <span className="text-muted-foreground text-sm">
-                    Saved{" "}
-                    {savedAtByControl[question.control_id].toLocaleTimeString(
-                      [],
-                      {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      },
-                    )}
-                  </span>
-                ) : null}
-
-                {question.type === "file" || question.evidence ? (
-                  <EvidenceUpload
-                    assessmentId={assessmentId}
-                    controlId={question.control_id}
-                    accept={question.evidence?.accept}
-                    evidence={evidenceByControl[question.control_id] ?? []}
-                    disabled={isReadOnly}
-                    onUploaded={(item) =>
-                      handleEvidenceUploaded(
-                        question.control_id,
-                        question.type === "file",
-                        item,
-                      )
-                    }
-                  />
-                ) : null}
-              </div>
-            ))}
           </div>
-        );
-      })}
+          {activeSection.questions.map((question) => (
+            <div
+              id={`question-${question.control_id}`}
+              key={question.control_id}
+              className="space-y-3 rounded-lg border bg-card p-5"
+            >
+              <QuestionLabel question={question} />
+              {question.type !== "file" ? (
+                <QuestionRenderer
+                  question={question}
+                  value={answers[question.control_id]}
+                  onChange={(value) =>
+                    handleAnswerChange(question.control_id, value)
+                  }
+                  disabled={isReadOnly}
+                  size="portal"
+                />
+              ) : null}
+              {savingControlIds.has(question.control_id) ? (
+                <span className="text-muted-foreground text-sm">Saving…</span>
+              ) : savedAtByControl[question.control_id] ? (
+                <span className="text-muted-foreground text-sm">
+                  Saved{" "}
+                  {savedAtByControl[question.control_id].toLocaleTimeString(
+                    [],
+                    {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    },
+                  )}
+                </span>
+              ) : null}
+
+              {question.type === "file" || question.evidence ? (
+                <EvidenceUpload
+                  assessmentId={assessmentId}
+                  controlId={question.control_id}
+                  accept={question.evidence?.accept}
+                  evidence={evidenceByControl[question.control_id] ?? []}
+                  disabled={isReadOnly}
+                  onUploaded={(item) =>
+                    handleEvidenceUploaded(
+                      question.control_id,
+                      question.type === "file",
+                      item,
+                    )
+                  }
+                />
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {!isReadOnly ? (
-        <Button onClick={handleSubmit} disabled={submitting}>
-          {submitting ? "Submitting…" : "Submit assessment"}
-        </Button>
+        <div className="flex items-center justify-between border-t pt-5">
+          <Button
+            variant="outline"
+            onClick={() => setCurrentSection((value) => Math.max(0, value - 1))}
+            disabled={currentSection === 0}
+          >
+            Back
+          </Button>
+          {currentSection < visibleSections.length - 1 ? (
+            <Button
+              onClick={() =>
+                setCurrentSection((value) =>
+                  Math.min(visibleSections.length - 1, value + 1),
+                )
+              }
+            >
+              Continue
+            </Button>
+          ) : (
+            <Button onClick={handleSubmit} disabled={submitting}>
+              {submitting ? "Submitting…" : "Submit assessment"}
+            </Button>
+          )}
+        </div>
       ) : null}
     </div>
   );

@@ -10,8 +10,12 @@
 
 ## Hard stops — never without explicit approval in the current session
 
-1. **No new dependencies.** Do not add anything to `package.json` without asking first.
-   Name the package, the version, why it's needed, and what it replaces.
+1. **Libraries are pre-approved project-wide.** New libraries and package upgrades may be
+   added whenever they materially improve the implementation; no per-package or per-session
+   approval is required. Keep versions pinned through the lockfile, prefer maintained and
+   narrowly-scoped packages, document consequential additions in `DECISIONS.md`, and verify
+   the resulting build/tests. This standing authorization remains in force for the entire
+   project unless the project owner explicitly revokes it (`DECISIONS.md` 038).
 2. **Do not touch authentication logic** — internal admin login or Vendor SPOC Email OTP —
    as a side effect of another task. Auth changes are their own request, with their own
    rollback plan.
@@ -19,8 +23,10 @@
    `deleteMany`, or unguarded `updateMany`. Migrations must be reversible and reviewed.
 4. **Never commit secrets.** No credentials, AWS keys, connection strings, or OTP secrets
    in code, docs, or commit messages. Environment variables only, `.env` git-ignored.
-5. **Do not push, force-push, merge, or open a PR** unless asked. Do not commit to `main`
-   without being told to.
+5. **Work directly on `main`.** Do not create feature branches or pull requests unless the
+   project owner explicitly asks for one. Direct editing on `main` is the standing project
+   workflow (`DECISIONS.md` 039). This does not independently authorize committing,
+   pushing, force-pushing, or merging; those actions still require an explicit request.
 6. **Do not scope-creep the MVP.** The eight parked features in
    `VRA MVP Feature Specification.md` §4 are out of scope. Do not start building an AI
    layer, SSO, discovery workers, or external integrations because they seem useful.

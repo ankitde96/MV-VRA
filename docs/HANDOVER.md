@@ -8,6 +8,27 @@
 
 ## Current state (as of 2026-08-18)
 
+- **Work directly on `main`** — do not create branches or pull requests unless explicitly
+  requested. Commits and pushes still require a direct request. See `DECISIONS.md` 039 and
+  `CONSTRAINTS.md` #5.
+
+- **Library additions are permanently pre-approved project-wide** — there is no
+  per-package, per-session, or per-feature approval requirement. This supersedes the former
+  `CONSTRAINTS.md` #1 restriction and `DECISIONS.md` 028's temporary exception. Continue to
+  pin, document, and verify consequential additions. See `DECISIONS.md` 038.
+
+- **MV-VRA Console redesign implemented** — the app now uses flat Swiss-style opaque
+  surfaces, Geist typography, and the confirmed `#00A15C` action green. The locked risk
+  palette is unchanged. Added Vendor `business_unit`, dashboard tier-by-BU aggregation,
+  vendor filter chips, template section/question counts, `/assessments` review queue,
+  cross-linked split login surfaces, and a section-based vendor portal questionnaire.
+  See `docs/features/mv-vra-console-redesign.md` and `DECISIONS.md` 037.
+- **Verification:** lint has zero errors (one existing TanStack compiler warning); 205/206
+  tests passed in the full run and the lone local-storage sharing failure passed on isolated
+  rerun. Typecheck is blocked only by pre-existing generated `.next/types` route-handler
+  signature errors. `21st review` reported only existing shadcn primitive focus findings;
+  no glass/aurora/grain class remains in application code.
+
 - **Recharts hydration mismatch fixed at root cause** — `DECISIONS.md` 034 corrects 030's
   "documented, not fixed" call after the user hit it directly in the browser console. Every
   chart now threads a `React.useId()`-derived `id` into its recharts container.

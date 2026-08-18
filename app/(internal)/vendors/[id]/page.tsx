@@ -149,7 +149,7 @@ export default async function VendorDetailPage({
           openRiskBySeverity={scorecard.open_risk_by_severity}
         />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <Card className="glass-panel">
+          <Card className="rounded-lg border bg-card shadow-none">
             <CardContent className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-muted-foreground text-xs font-medium uppercase">
@@ -158,8 +158,8 @@ export default async function VendorDetailPage({
                 <p
                   className={
                     scorecard.reassessment_overdue
-                      ? "text-risk-critical font-heading mt-1 text-2xl font-semibold"
-                      : "font-heading mt-1 text-2xl font-semibold"
+                      ? "text-risk-critical mt-1 text-2xl font-semibold"
+                      : "mt-1 text-2xl font-semibold"
                   }
                 >
                   {scorecard.next_review_due
@@ -194,7 +194,6 @@ export default async function VendorDetailPage({
             }
             icon={<ClipboardList />}
             tone={scorecard.cap_tasks.overdue > 0 ? "critical" : "default"}
-            glass
           />
           <StatCard
             label="Evidence coverage"
@@ -211,7 +210,6 @@ export default async function VendorDetailPage({
                 ? "medium"
                 : "default"
             }
-            glass
           />
         </div>
         <AssessmentHistoryList history={scorecard.assessment_history} />

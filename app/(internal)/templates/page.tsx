@@ -27,13 +27,24 @@ export default async function TemplatesPage() {
     }
   }
 
-  const rows: TemplateRow[] = [...latestByKey.values()].map((template) => ({
-    id: template._id.toString(),
-    name: template.name,
-    template_key: template.template_key,
-    version: template.version,
-    status: template.status,
-  }));
+  const rows: TemplateRow[] = [...latestByKey.values()].map((template) => {
+    const schema = template.questions_schema as unknown as {
+      sections?: Array<{ questions?: unknown[] }>;
+    };
+    const sections = schema.sections ?? [];
+    return {
+      id: template._id.toString(),
+      name: template.name,
+      template_key: template.template_key,
+      version: template.version,
+      status: template.status,
+      sections: sections.length,
+      questions: sections.reduce(
+        (sum, section) => sum + (section.questions?.length ?? 0),
+        0,
+      ),
+    };
+  });
 
   return (
     <div>

@@ -2,6 +2,7 @@
 
 import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,7 +76,7 @@ function OtpLoginForm() {
 
   return (
     <div className="flex min-h-[70vh] flex-1 items-center justify-center">
-      <Card className="glass-panel w-full max-w-md">
+      <Card className="w-full max-w-md rounded-lg border bg-card shadow-none">
         <CardHeader>
           <h1 className="text-foreground text-xl font-semibold">
             Vendor sign in
@@ -160,6 +161,12 @@ function OtpLoginForm() {
               </button>
             </form>
           )}
+          <Link
+            href="/login"
+            className="mt-5 block text-center text-sm font-medium text-primary hover:underline"
+          >
+            Internal sign in →
+          </Link>
         </CardContent>
       </Card>
     </div>

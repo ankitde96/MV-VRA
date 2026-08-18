@@ -18,6 +18,13 @@ export interface DashboardSummary {
     tier3: number;
     unscored: number;
   };
+  vendors_by_business_unit: Array<{
+    business_unit: string;
+    tier1: number;
+    tier2: number;
+    tier3: number;
+    unscored: number;
+  }>;
   open_risks_by_severity: {
     critical: number;
     high: number;
@@ -55,6 +62,7 @@ export async function getDashboardSummary(
 
   const [
     tierCounts,
+    tierByBusinessUnit,
     severityCounts,
     overdueCapCount,
     awaitingReviewCount,
@@ -67,6 +75,19 @@ export async function getDashboardSummary(
     Vendor.aggregate([
       { $match: { workspace_id: workspaceId } },
       { $group: { _id: "$inherent_risk_tier", count: { $sum: 1 } } },
+    ]),
+    Vendor.aggregate([
+      { $match: { workspace_id: workspaceId } },
+      {
+        $group: {
+          _id: {
+            business_unit: { $ifNull: ["$business_unit", "Unassigned"] },
+            tier: "$inherent_risk_tier",
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { "_id.business_unit": 1 } },
     ]),
     Risk.aggregate([
       { $match: { workspace_id: workspaceId, status: { $ne: "closed" } } },
@@ -131,6 +152,29 @@ export async function getDashboardSummary(
     }
   }
 
+  const byBusinessUnit = new Map<
+    string,
+    DashboardSummary["vendors_by_business_unit"][number]
+  >();
+  for (const row of tierByBusinessUnit as Array<{
+    _id: { business_unit: string; tier: number | null };
+    count: number;
+  }>) {
+    const key = row._id.business_unit || "Unassigned";
+    const item = byBusinessUnit.get(key) ?? {
+      business_unit: key,
+      tier1: 0,
+      tier2: 0,
+      tier3: 0,
+      unscored: 0,
+    };
+    if (row._id.tier === 1) item.tier1 += row.count;
+    else if (row._id.tier === 2) item.tier2 += row.count;
+    else if (row._id.tier === 3) item.tier3 += row.count;
+    else item.unscored += row.count;
+    byBusinessUnit.set(key, item);
+  }
+
   const riskPostureTrend = (
     riskTrendRaw as Array<{ _id: Date; opened: number; closed: number }>
   ).map((row) => ({
@@ -179,6 +223,7 @@ export async function getDashboardSummary(
     overdue_cap_count: overdueCapCount,
     assessments_awaiting_review: awaitingReviewCount,
     vendors_by_tier: vendorsByTier,
+    vendors_by_business_unit: [...byBusinessUnit.values()],
     open_risks_by_severity: openRisksBySeverity,
     risk_posture_trend: riskPostureTrend,
     attention_queue: attentionQueue.slice(0, 8),
