@@ -6,46 +6,60 @@
 
 ---
 
-## Current state (as of 2026-08-17)
+## Current state (as of 2026-08-18)
 
 **Project name:** MV-VRA (MoneyView Vendor Risk Assessment).
-**Phase:** Phases 0–11 done (the original MVP). A post-MVP **UI Revamp** (8 phases, its own
-sequence, not part of `PLAN.md`'s 0–11) just completed a full pass — see below and
-`docs/features/ui-revamp.md`.
+**Phase:** Phases 0–11 done (the original MVP). Two post-MVP UI passes now complete:
+**UI Revamp Round 1** (8 phases, Swiss-flat design system — `docs/features/ui-revamp.md`)
+and **UI Revamp Round 2** (6 phases, glass + KPI/KRI analytics — `docs/UI-REVAMP-2-PLAN.md`,
+`DECISIONS.md` 028–033). Neither is part of `PLAN.md`'s 0–11 sequence.
 
-- **UI Revamp (Phases 0–8) done, `npm run verify` green throughout, 190/190 tests, zero
-  regressions.** The internal console got a full design pass on top of the existing backend
-  — no service/repository/auth-layer code changed. Built: a collapsible sidebar shell
-  (replacing a flat topbar) with `⌘K` command palette, theme toggle, and role-gated nav; a
-  real dashboard (`lib/services/dashboard.ts`, new) replacing the Phase 2 placeholder —
-  gradient hero, KPI row, risk-trend and tier-distribution charts, attention queue, recent
-  activity; a shared `DataTable` (TanStack, sort/search/column-visibility) applied to
-  vendors, risk register, and templates; `RiskTierBadge`/`SeverityBadge`/`StatusBadge`
-  domain components (icon+label+colour always, a `null` tier renders a visible "Not
-  scored" warning, never blank); `toast()` wired up on the five highest-traffic mutation
-  forms (sonner was mounted since Phase 1 but never called before this); a redesigned
-  vendor portal (6-box paste-aware OTP input, persistent "Saved HH:MM" autosave, the raw
-  `assessment.status` enum value no longer leaks to vendors as literal text). Full details,
-  every file touched, and what was explicitly cut for scope: `docs/features/ui-revamp.md`
-  §6 (work log) and §11 (follow-ups).
-- **Two dependency versions were downgraded mid-build after real breakage**: `npm i`
-  resolved `@tanstack/react-table` to `9.1.2` and `recharts` to `3.8.0` — both ground-up
-  API rewrites incompatible with the shadcn components built on top of them. Pinned back to
-  `@tanstack/react-table@8.21.3` and `recharts@2.15.4` (`DECISIONS.md` 026). If a
-  future `npm install`/`npm update` bumps either forward again without re-verifying against
-  the actual shadcn `data-table`/`chart` components, expect the same breakage to return.
+- **UI Revamp Round 2 (Phases A–F) done, `npm run verify` green throughout every phase,
+  204/204 tests, zero regressions, six commits (`45c392e`…`6be4510`).** Lifted §2's
+  Glassmorphism rejection app-wide (`.glass-panel`/`.glass-panel-sm`, aurora-mesh hero,
+  `DECISIONS.md` 028) while keeping every risk-severity surface flat and unchanged. New
+  `lib/services/analytics.ts` computes the KRI/KPI framework (risk aging, residual exposure
+  trend, cycle time, MTTR, reassessment-overdue, portal-stall, CAP closure rate, review
+  coverage) from three new additive nullable fields (`Assessment.due_date`/
+  `next_review_due`, `Risk.closed_at` — three of the original six-field plan turned out to
+  already exist under other names, `DECISIONS.md` 029). Rebuilt the dashboard into a KRI/KPI
+  cockpit (Phase C), gave the executive roll-up its two spec'd-but-never-built charts (Phase
+  D — grouped-bar tier comparison, CAP age buckets), built the per-vendor risk scorecard
+  §4 spec'd in Round 1 and never built (Phase E — `ScoreBreakdown`, assessment history,
+  evidence coverage), and closed out Round 1's two remaining debts (Phase F — `DataTable`
+  migration for admin-users/sharing, toast conversion audited via a full repo grep, two
+  deliberate exceptions kept per §6/§7). Full details: `docs/UI-REVAMP-2-PLAN.md`,
+  `DECISIONS.md` 028–033.
+- **Two real bugs were found and fixed via live browser verification, not assumed** — this
+  is the discipline worth carrying forward: (1) a chart's workspace-name x-axis labels
+  collided with its legend in vertical orientation (Phase D, fixed by switching to
+  horizontal); (2) a "reduction %" stat was hardcoded green regardless of sign, but
+  `residual_total` can legitimately exceed `inherent_score` once a vendor carries several
+  open risks — a vendor whose risk had _grown_ would have displayed as improved (Phase E,
+  fixed via sign-based coloring). Neither would have been caught by typecheck/lint/tests.
+- **`dataviz` skill's palette validator flagged a real, pre-existing accessibility gap**:
+  the locked risk-severity palette's light-mode critical↔high pair sits below the
+  normal-vision-floor threshold (`DECISIONS.md` 030). Not fixed — recoloring a
+  locked, everywhere-used palette is its own decision, out of scope for a chart-building
+  task. Mitigated per-chart with mandatory legends/tables; flagged here for a future
+  accessibility pass to start from.
+- **UI Revamp Round 1 (Phases 0–8) done, 190/190 tests, zero regressions** — Swiss-flat
+  design system, sidebar shell, `⌘K` command palette, `DataTable` (vendors/risk-register/
+  templates only — admin-users/sharing were Round 1 debt, closed in Round 2 Phase F), OTP
+  portal redesign. `@tanstack/react-table@8.21.3`/`recharts@2.15.4` pinned after `npm i`
+  resolved newer, incompatible majors (`DECISIONS.md` 026) — re-verify against the actual
+  `data-table`/`chart` components before ever bumping either forward. Full details:
+  `docs/features/ui-revamp.md`.
 - **Git baseline established 2026-08-18** (`DECISIONS.md` 027) — root commit (300 files,
-  Phases 0–11 + UI Revamp) pushed to `origin/main` (`github.com/ankitde96/MV-VRA`). Added
-  `.gitignore` and `.env.example` first so the first commit didn't ship `node_modules`/
-  `.next` or the real `SUPER_ADMIN_PASSWORD_HASH`. Every "no revert path" caveat in prior
-  entries (010, 011, 014, 025) is resolved as of this commit.
-- **Not done in the UI revamp** (deliberately cut for scope, see the feature trace §11):
-  `admin-users-client.tsx`/`sharing-client.tsx` still use their original list/table markup,
-  not the new `DataTable`; ~9 of ~14 files with the duplicated `toast`-eligible error string
-  weren't converted; no automated a11y tooling (axe/Lighthouse) or actual responsive-
-  viewport screenshot was run (the browser automation resize tool didn't produce a working
-  viewport in this session — responsive behavior was verified by code review of the
-  Tailwind classes and shadcn `Sidebar`'s mobile fallback, not visually).
+  Phases 0–11 + UI Revamp Round 1) pushed to `origin/main` (`github.com/ankitde96/MV-VRA`),
+  followed by six more commits for Round 2. Every "no revert path" caveat in prior entries
+  (010, 011, 014, 025) is resolved as of `0ea5688`.
+- **Not done, deliberately** (see `docs/UI-REVAMP-2-PLAN.md`'s own scope notes): no
+  automated a11y tooling (axe/Lighthouse); the "evidence gap rate" KRI is an approximation
+  (answered-with-no-evidence, not "questions that actually require evidence" — no schema
+  flag exists to join against); "cross-workspace share reuse" KRI not implemented; radar
+  chart (control-domain coverage) not built — no code maps risks to a control-domain
+  taxonomy, would have fabricated data.
 
 **Prior phase (0–11, original MVP):**
 
@@ -233,19 +247,78 @@ db:indexes` and `npm run db:seed` both run clean. `npm run dev` serves on port 3
   only to "still open, separate decision"), four open with recorded defaults, none
   blocking Phase 8.
 
-**Next concrete step:** No phase remains in `PLAN.md`'s 0–11 sequence, the UI Revamp's 8
-phases are also done, and the git baseline gap is now closed (`DECISIONS.md` 027). Open:
-rotate `SUPER_ADMIN_PASSWORD_HASH` (the real value was exposed in a prior session
-transcript, per project memory — the pushed `.env.example` only ships a blank placeholder,
-but the live local secret should still be rotated). Otherwise: the UI Revamp's own
-follow-ups (`docs/features/ui-revamp.md` §11 — admin-users/sharing tables, remaining toast
-migrations, a11y tooling, a real responsive check), or the eight explicitly-parked feature
-areas (`DECISIONS.md` 001), if the project owner wants to continue past the original MVP
-scope.
+**Next concrete step:** No phase remains in `PLAN.md`'s 0–11 sequence; both UI Revamp
+rounds are done; the git baseline gap is closed (`DECISIONS.md` 027). Open items, none
+blocking: (1) rotate `SUPER_ADMIN_PASSWORD_HASH` — the real value was exposed in a prior
+session transcript, per project memory; the pushed `.env.example` only ships a blank
+placeholder, but the live local secret should still be rotated; (2) the risk-severity
+palette's normal-vision-floor gap `DECISIONS.md` 030 flagged, if a real accessibility pass
+is ever prioritized; (3) no automated a11y tooling (axe/Lighthouse) exists anywhere in the
+app; (4) the eight explicitly-parked post-MVP feature areas (`DECISIONS.md` 001), if the
+project owner wants to continue past current scope.
 
 ---
 
 ## Session log
+
+### 2026-08-18 — UI Revamp Round 2: glassmorphism + KPI/KRI analytics (6 phases)
+
+1. **What we did:** Ran the `brainstorming` skill end to end (Understanding Lock,
+   `AskUserQuestion` on glass scope/KPI data scope/surfaces/sequencing, decision log) before
+   any code, per project owner's request to move past Round 1's flat design and add real
+   risk analytics. Delivered all 6 planned phases, each verified and committed separately:
+   **A** — glass/depth token system (`.glass-panel`, aurora-mesh, Lexend display font),
+   lifting `DESIGN-SYSTEM.md` §2's Glassmorphism ban while keeping risk-severity surfaces
+   flat (`DECISIONS.md` 028). **B** — `lib/services/analytics.ts` (new), the KRI/KPI
+   aggregation layer; found 3 of the originally-planned 6 additive schema fields already
+   existed under different names once the models were actually read, so only
+   `Assessment.due_date`/`next_review_due` and `Risk.closed_at` were genuinely new
+   (`DECISIONS.md` 029). **C** — dashboard rebuilt into a KRI/KPI cockpit; ran the `dataviz`
+   skill's palette validator before writing chart code per its required procedure, surfacing
+   a real pre-existing accessibility gap in the locked severity palette (not fixed, flagged —
+   `DECISIONS.md` 030); built `scripts/seed-demo-data.ts` for realistic local verification
+   data. **D** — executive roll-up's two missing §5 charts (grouped-bar tier comparison, CAP
+   age buckets); live browser verification caught a real label-collision bug, fixed by
+   switching orientation, not a workaround (`DECISIONS.md` 031). **E** — per-vendor risk
+   scorecard (`ScoreBreakdown`, spec'd in Round 1 and never built); live verification caught
+   a real bug — a reduction-percent stat was hardcoded green regardless of sign, but
+   residual can legitimately exceed inherent with multiple open risks, so a
+   worsening vendor would have displayed as improving (`DECISIONS.md` 032). **F** — portal
+   polish (restrained, no charts/KPIs there per §1/§7) plus Round 1's two remaining debts:
+   `DataTable` migration for admin-users/sharing, and a full repo-wide `grep` (not just the
+   §11 list) for every remaining `Alert variant="destructive"` — converted 9 to `toast()`,
+   deliberately kept 2 inline per `DESIGN-SYSTEM.md` §6/§7's own rules (`DECISIONS.md` 033).
+2. **What's left:** Nothing planned — this closes the UI Revamp Round 2 scope in full. See
+   "Next concrete step" above for open, non-blocking items.
+3. **Watch out for:**
+   - **The risk-severity palette's colors are still locked and unchanged** — glass/gradient
+     is sanctioned everywhere else, but every severity badge and risk-colored table cell
+     must stay flat and solid. `git grep 'risk-critical\|risk-high\|risk-medium\|risk-low'`
+     combined with `glass-panel` is a fast sanity check if this is ever in doubt.
+   - **Three Round-2 timestamp fields are `null`-excluded, never defaulted**, by every
+     analytics aggregation that reads them — a record written before this round (or one that
+     never reached the step that stamps the field) is correctly excluded from averages, not
+     treated as zero. Don't "fix" a `null` by defaulting it without re-reading
+     `DECISIONS.md` 029's rationale.
+   - **`getVendorScorecard()` is a separate function from `getWorkspaceAnalytics()`, not a
+     `vendor_id` filter** — several `getWorkspaceAnalytics()` fields are portfolio-wide by
+     definition and have no vendor-scoped equivalent (`DECISIONS.md` 032). Don't try to
+     collapse them.
+   - **Two portal files still use inline `Alert`, not `toast()`, on purpose** —
+     `assessment-answer-form.tsx`'s submit-blocker list and `evidence-upload.tsx`'s
+     field-adjacent error. Converting either to a toast would be a UX regression, not a
+     cleanup (`DECISIONS.md` 033).
+   - **No browser-driven (Playwright-style) automated test exists for any Round 2 UI** —
+     every phase was verified by live Chrome browser interaction in this session (light +
+     dark, real seeded data, cross-checked against direct DB queries), not by an automated
+     regression suite. The next session should not assume repeat coverage.
+4. **Files touched:** Too many to list individually — see the six commit messages
+   (`45c392e` Phase A, `7c0c0f2` Phase B, `69e398b` Phase C, `a9e498b` Phase D, `e5f62ab`
+   Phase E, `6be4510` Phase F) and `docs/UI-REVAMP-2-PLAN.md`'s per-phase file lists.
+   `docs/DECISIONS.md` 028–033, `docs/ROLLBACK.md` (Active plan updated per phase),
+   `docs/UI-REVAMP-2-PLAN.md` (new). No source specs modified.
+5. **Model:** Claude Opus 5 (`claude-opus-5`) for the brainstorming/design session; Claude
+   Sonnet 5 (`claude-sonnet-5`) for all six implementation phases.
 
 ### 2026-08-18 — Git baseline established; pushed to origin
 
