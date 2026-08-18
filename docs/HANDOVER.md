@@ -34,10 +34,11 @@ sequence, not part of `PLAN.md`'s 0–11) just completed a full pass — see bel
   `@tanstack/react-table@8.21.3` and `recharts@2.15.4` (`DECISIONS.md` 026). If a
   future `npm install`/`npm update` bumps either forward again without re-verifying against
   the actual shadcn `data-table`/`chart` components, expect the same breakage to return.
-- **No git commit exists anywhere in this repo — now carrying an even larger uncommitted
-  surface** (~50 files from the UI revamp on top of everything already uncommitted). Raised
-  again this session, declined again. This is the single highest-leverage thing to fix
-  before any further work.
+- **Git baseline established 2026-08-18** (`DECISIONS.md` 027) — root commit (300 files,
+  Phases 0–11 + UI Revamp) pushed to `origin/main` (`github.com/ankitde96/MV-VRA`). Added
+  `.gitignore` and `.env.example` first so the first commit didn't ship `node_modules`/
+  `.next` or the real `SUPER_ADMIN_PASSWORD_HASH`. Every "no revert path" caveat in prior
+  entries (010, 011, 014, 025) is resolved as of this commit.
 - **Not done in the UI revamp** (deliberately cut for scope, see the feature trace §11):
   `admin-users-client.tsx`/`sharing-client.tsx` still use their original list/table markup,
   not the new `DataTable`; ~9 of ~14 files with the duplicated `toast`-eligible error string
@@ -232,18 +233,40 @@ db:indexes` and `npm run db:seed` both run clean. `npm run dev` serves on port 3
   only to "still open, separate decision"), four open with recorded defaults, none
   blocking Phase 8.
 
-**Next concrete step:** No phase remains in `PLAN.md`'s 0–11 sequence, and the UI Revamp's
-8 phases are also done. Still carried forward, now more pressing than ever: no git commit
-exists anywhere in this repo — this should be resolved before any further work, given
-thirteen phases (twelve MVP + the UI revamp) now sit uncommitted. Otherwise: the UI
-Revamp's own follow-ups (`docs/features/ui-revamp.md` §11 — admin-users/sharing tables,
-remaining toast migrations, a11y tooling, a real responsive check), or the eight
-explicitly-parked feature areas (`DECISIONS.md` 001), if the project owner wants to
-continue past the original MVP scope.
+**Next concrete step:** No phase remains in `PLAN.md`'s 0–11 sequence, the UI Revamp's 8
+phases are also done, and the git baseline gap is now closed (`DECISIONS.md` 027). Open:
+rotate `SUPER_ADMIN_PASSWORD_HASH` (the real value was exposed in a prior session
+transcript, per project memory — the pushed `.env.example` only ships a blank placeholder,
+but the live local secret should still be rotated). Otherwise: the UI Revamp's own
+follow-ups (`docs/features/ui-revamp.md` §11 — admin-users/sharing tables, remaining toast
+migrations, a11y tooling, a real responsive check), or the eight explicitly-parked feature
+areas (`DECISIONS.md` 001), if the project owner wants to continue past the original MVP
+scope.
 
 ---
 
 ## Session log
+
+### 2026-08-18 — Git baseline established; pushed to origin
+
+1. **What we did:** At the project owner's direction ("git is configured, let's push the
+   code... also create a readme"), found `origin` already configured
+   (`github.com/ankitde96/MV-VRA`) but zero commits. Added `.gitignore` (excludes
+   `node_modules/`, `.next/`, `.env*.local`, `.DS_Store`, `tsconfig.tsbuildinfo`,
+   `coverage/`, `.codegraph/`) and `.env.example` (README already referenced it via `cp
+.env.example .env.local`, but it didn't exist) before staging anything, verified neither
+   `node_modules`/`.next` nor `.env.local` were staged, made the root commit (300 files),
+   and pushed to `origin/main`. `README.md` already existed and was left as-is.
+2. **What's left:** Rotate `SUPER_ADMIN_PASSWORD_HASH` — the real value was exposed in a
+   prior session transcript (per project memory), unrelated to this commit but now more
+   worth doing since the project has a real remote.
+3. **Watch out for:** The pushed history's `.env.example` has a blank
+   `SUPER_ADMIN_PASSWORD_HASH=` — never fill that in with the real hash and commit it,
+   even to fix a "the example doesn't work" complaint; generate a fresh hash for whoever
+   needs one via `npm run hash-password`.
+4. **Files touched:** `.gitignore` (new), `.env.example` (new), `docs/DECISIONS.md` (027),
+   `docs/HANDOVER.md`. No source code changed.
+5. **Model:** Claude Sonnet 5 (`claude-sonnet-5`).
 
 ### 2026-08-17 — Phase 11: multi-workspace RBAC, sharing, executive roll-up
 

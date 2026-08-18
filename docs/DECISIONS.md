@@ -23,6 +23,53 @@
 
 ---
 
+## [2026-08-18] 027 — Git baseline finally established; `.gitignore`/`.env.example` added as prerequisites, not scope creep
+
+**Decision:** Ran `git init`-equivalent (the repo already had `origin` configured but zero
+commits) and made the root commit: 300 files, all of Phases 0–11 plus the UI Revamp.
+Two files were added first, before staging anything, because their absence would have put
+secrets or ~1.7GB of generated/dependency content into the first commit: `.gitignore`
+(excludes `node_modules/`, `.next/`, `.env*.local`, `.DS_Store`, `tsconfig.tsbuildinfo`,
+`coverage/`, `.codegraph/`) and `.env.example` (README already instructed `cp .env.example
+.env.local`, but the file didn't exist — added with the same keys as `.env.local`, values
+blanked, notably `SUPER_ADMIN_PASSWORD_HASH=`). Pushed to `origin/main`.
+
+**Context:** `DECISIONS.md` 010/011/014/025 all raised the missing git baseline and were
+each explicitly deferred by the project owner at the time. `HANDOVER.md` called it "the
+single highest-leverage thing to fix before any further work" as of the last thirteen
+phases of uncommitted work. This session, the project owner asked directly to push.
+
+**Rationale:** `.gitignore` and `.env.example` aren't separate feature work — committing
+without them would have shipped `.env.local`'s real `SUPER_ADMIN_PASSWORD_HASH` (an argon2
+hash already flagged as exposed in a prior session transcript per project memory) and
+`node_modules`/`.next` (783MB + 975MB) into permanent git history on a public-capable
+remote. Both were verified absent from the staged tree (`git status --short | grep` for
+each path) before committing, not assumed correct from the `.gitignore` content alone.
+
+**Alternatives rejected:**
+
+- _Commit everything first, clean history after_ — rejected; scrubbing a real secret out of
+  git history after the fact requires a history rewrite (`git filter-repo` or equivalent)
+  and, if already pushed, is not a full remediation — the secret must be rotated regardless.
+  Cheaper and strictly safer to gitignore before the first commit ever happens.
+- _Leave `.env.example` absent since it's not what was asked_ — rejected; the checked-in
+  `README.md` already instructs `cp .env.example .env.local` as the first setup step, so a
+  fresh clone following the README would fail immediately without it. Fixing a doc's own
+  broken instruction is a prerequisite of "push the code," not an unrelated addition.
+
+**Consequences:** `origin/main` now has a real history to diff against and revert to —
+`ROLLBACK.md`'s "safe commit SHA" field has a value for the first time. Every prior
+`DECISIONS.md` entry's "no revert path" caveat (010, 011, 014, 025) is resolved as of this
+commit; do not restate it in future entries. `SUPER_ADMIN_PASSWORD_HASH` in the pushed
+history's `.env.example` is blank, but the real value in local `.env.local` was already
+exposed in a session transcript before this commit — rotating it is a separate, still-open
+task, not something this commit fixes.
+
+**Decided by:** Claude Sonnet 5 (`claude-sonnet-5`), at the project owner's direction ("git
+is configured, let's push the code").
+
+---
+
 ## [2026-08-17] 026 — UI Revamp: pinned `@tanstack/react-table` and `recharts` back to their
 
 last stable major after both broke on the versions `npm i` resolved
