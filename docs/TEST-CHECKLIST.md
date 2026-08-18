@@ -57,6 +57,11 @@ executive-rollup}.test.ts` (all integration, against a real MongoDB) — then cl
 > write is a real multi-document transaction and a standalone `mongod` rejects
 > `startTransaction()` outright. If no mongod is reachable, or it's still standalone, Gate 2
 > will fail on the integration test files, not just skip them; report that explicitly.
+>
+> **Browser gate added 2026-08-18:** Playwright exercises authentication boundaries,
+> role-aware navigation, responsive rendering, vendor portal login, and recoverable OTP
+> failure behavior against a real Next.js server. It is intentionally separate from
+> `npm run verify` because it requires seeded development fixtures and browser binaries.
 
 ---
 
@@ -101,6 +106,31 @@ against a fresh `.next`-less checkout.
 ```bash
 npm test                # vitest run — expect: all suites pass, 0 failures
 ```
+
+## Gate 2B — Browser end-to-end tests
+
+Prerequisites: the development MongoDB replica set is running, `npm run db:seed` and
+`npm run db:seed-questionnaire` have completed, and Chromium is installed once with
+`npx playwright install chromium`.
+
+```bash
+npm run test:e2e                    # desktop Chromium + Pixel 7 viewport
+npm run test:e2e -- --project=chromium  # faster focused desktop gate
+npm run test:e2e:ui                 # interactive local debugging
+```
+
+The suite under `e2e/` is deliberately read-only against application data. It covers:
+
+- unauthenticated redirects and post-login return destinations;
+- generic invalid-credential behavior;
+- internal/portal cookie isolation;
+- primary administrator workspace surfaces;
+- an explicit business-owner denial on an admin-only page;
+- seeded vendor portal authentication; and
+- an intercepted OTP-request failure that must remain on the email step.
+
+Playwright owns server startup through `playwright.config.ts`, reuses an existing local
+server outside CI, and retains traces/screenshots/video only for failures.
 
 Phase 0 added one smoke test (`lib/__tests__/env.test.ts`). Phase 1 added real integration
 coverage against a live local MongoDB:

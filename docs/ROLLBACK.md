@@ -34,12 +34,16 @@ For anything smaller, `git diff` and `git restore` are sufficient.
 Overwrite this block at the start of each risky change. One at a time.
 
 ```
-MV-VRA Console redesign (2026-08-18, in progress).
-Plan: docs/features/mv-vra-console-redesign.md.
-Safe baseline: 4556945b0c9419f9e13cf833e3e438ae42e05eb8.
-Schema change is additive and nullable: Vendor.business_unit. Primary rollback surface:
-app/globals.css, app/layout.tsx, app/(internal)/layout.tsx,
-app/(portal)/portal/layout.tsx. Full affected-file list lives in the feature plan.
+Browser E2E + UX reliability + documentation cleanup (2026-08-18, completed locally).
+Safe baseline: 5b37815193f5 (origin/main at task start).
+No schema, tenant-scoping, session format, or persistence changes. Added Playwright as a
+dev dependency plus playwright.config.ts/e2e/*. UX changes are confined to portal request,
+autosave, submission-flush, and upload retry states. Documentation changes reconcile the
+current git baseline and add the browser gate. Revert the task files from the safe baseline;
+package.json and package-lock.json must be reverted together.
+
+Prior active plan (closed):
+MV-VRA Console redesign (2026-08-18).
 
 Prior active plan (closed):
 UI Revamp Round 2 — glassmorphism visual layer + KPI/KRI analytics (2026-08-18).

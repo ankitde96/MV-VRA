@@ -8,6 +8,25 @@
 
 ## Current state (as of 2026-08-18)
 
+- **Browser E2E and portal reliability hardening added.** Playwright now runs desktop
+  Chromium and a Pixel 7 viewport against a real Next.js server. The read-only suite covers
+  protected-route return behavior, generic credential failure, internal/portal session
+  isolation, primary admin navigation, business-owner denial, seeded vendor login, and an
+  OTP-request failure. Portal UX now refuses to advance after a failed OTP request, exposes
+  autosave errors with a retry action, flushes pending autosaves before submission, and
+  presents upload failures as accessible retryable states. See `e2e/`,
+  `playwright.config.ts`, and `docs/features/browser-e2e-ux-reliability.md`.
+- **Verification is fully green again.** The new browser gate passes 14/14 across desktop
+  Chromium and Pixel 7; Vitest passes 206/206; format, typecheck, and production build pass.
+  Fixing the long-documented Next.js route-type blocker required making the shared
+  `withRouteErrors` wrapper's request/context parameters non-optional, matching the runtime
+  contract every route already receives. Lint retains one known TanStack Table React
+  Compiler advisory and no errors.
+- **Documentation current-state cleanup completed.** `ARCHITECTURE.md` no longer claims the
+  repository has no commits, `TEST-CHECKLIST.md` defines the browser gate, README documents
+  setup/scripts, and `ROLLBACK.md` records this task's real baseline. Historical phase notes
+  remain historical rather than being rewritten.
+
 - **Work directly on `main`** — do not create branches or pull requests unless explicitly
   requested. Commits and pushes still require a direct request. See `DECISIONS.md` 039 and
   `CONSTRAINTS.md` #5.
@@ -23,11 +42,10 @@
   vendor filter chips, template section/question counts, `/assessments` review queue,
   cross-linked split login surfaces, and a section-based vendor portal questionnaire.
   See `docs/features/mv-vra-console-redesign.md` and `DECISIONS.md` 037.
-- **Verification:** lint has zero errors (one existing TanStack compiler warning); 205/206
-  tests passed in the full run and the lone local-storage sharing failure passed on isolated
-  rerun. Typecheck is blocked only by pre-existing generated `.next/types` route-handler
-  signature errors. `21st review` reported only existing shadcn primitive focus findings;
-  no glass/aurora/grain class remains in application code.
+- **Prior redesign verification note:** lint had zero errors (one existing TanStack compiler
+  warning); 205/206 tests passed in that historical full run and the lone local-storage
+  sharing failure passed on isolated rerun. See the newest entry above and current terminal
+  verification for the present state rather than treating this historical count as current.
 
 - **Recharts hydration mismatch fixed at root cause** — `DECISIONS.md` 034 corrects 030's
   "documented, not fixed" call after the user hit it directly in the browser console. Every

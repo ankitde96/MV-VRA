@@ -59,7 +59,11 @@ export function EvidenceUpload({
 
   return (
     <div className="space-y-2">
-      {error ? <p className="text-destructive text-xs">{error}</p> : null}
+      {error ? (
+        <p className="text-destructive text-xs" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       {evidence.length > 0 ? (
         <ul className="space-y-1">
@@ -91,7 +95,7 @@ export function EvidenceUpload({
             disabled={loading}
             onClick={handleUpload}
           >
-            {loading ? "Uploading…" : "Upload"}
+            {loading ? "Uploading…" : error ? "Retry upload" : "Upload"}
           </Button>
         </div>
       ) : null}

@@ -36,11 +36,15 @@ function OtpLoginForm() {
     try {
       // Always succeeds and always shows the same next step — FLOW.md F2 gap (a). The UI
       // has no way to tell from this response whether the email matched a vendor.
-      await fetch("/api/portal/auth/otp/request", {
+      const response = await fetch("/api/portal/auth/otp/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
+      if (!response.ok) {
+        toast.error("We couldn't send the code. Please wait and try again.");
+        return;
+      }
       setStep("code");
     } catch {
       toast.error("We couldn't send the code. Please try again.");

@@ -3,10 +3,11 @@ import * as React from "react";
 const MOBILE_BREAKPOINT = 768;
 
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(() =>
-    typeof window === "undefined"
-      ? undefined
-      : window.innerWidth < MOBILE_BREAKPOINT,
+  // Keep the server render and the client's first render identical. Reading `window` in
+  // the state initializer made narrow viewports render the mobile Sheet before hydration
+  // while the server had emitted the desktop sidebar, forcing React to replace the tree.
+  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(
+    undefined,
   );
 
   React.useEffect(() => {
@@ -14,6 +15,7 @@ export function useIsMobile() {
     const onChange = () => {
       setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
     };
+    onChange();
     mql.addEventListener("change", onChange);
     return () => mql.removeEventListener("change", onChange);
   }, []);

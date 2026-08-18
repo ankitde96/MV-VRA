@@ -3,7 +3,7 @@
 > Guide habit 6. The _shape_ of the system, not implementation detail — so no session has
 > to re-derive the terrain by guessing.
 >
-> **STATUS (2026-08-17): Phases 0–11 ✅ BUILT — the full `PLAN.md` sequence.** Scaffold (0),
+> **STATUS (2026-08-18): Phases 0–11 ✅ BUILT — the full `PLAN.md` sequence.** Scaffold (0),
 > data layer + tenant guard (1), internal authentication (2), vendor intake + Inherent Risk
 > Engine + tiering (3), vendor SPOC management + the storage module (4), the questionnaire
 > template builder + versioning (5), assessment assignment + OTP portal auth (6),
@@ -22,10 +22,8 @@
 > write paths (`DECISIONS.md` 023). Phase 11 removed the Phase 2 single-account login gate
 > (`DECISIONS.md` 013, 024), added the first-ever readers/writers of the `SharedDocument`
 > and `User.memberships[].role` fields (both unused since Phase 1), and closed `FLOW.md`
-> F6's per-workspace-authorization gap. No commits exist yet (git setup deliberately
-> deferred by the project owner, re-confirmed again through Phase 11); see
-> `docs/ROLLBACK.md` — this now spans twelve full phases uncommitted, worth raising
-> directly with the project owner before any further work.
+> F6's per-workspace-authorization gap. The former no-git-baseline risk is closed: `main`
+> has a pushed history and `docs/ROLLBACK.md` records the current rollback baseline.
 
 ---
 
@@ -52,6 +50,7 @@ contract/SLA tracking, and third-party integrations (spec §4).
 | Internal auth    | Multi-user, RBAC-gated (dev)                          | ✅ BUILT (Phases 2, 11). Stateless HMAC-signed session cookie, `proxy.ts` fails closed by default (Phase 2, `DECISIONS.md` 012). The single-`SUPER_ADMIN_EMAIL` gate (013) was removed in Phase 11 — any active `User` with a matching password logs in; a four-role capability matrix (`lib/auth/rbac.ts`) resolved fresh from the DB per request now gates writes — see `DECISIONS.md` 024. Google SSO parked to post-MVP |
 | Vendor auth      | Email OTP to Vendor SPOC                              | ✅ BUILT (Phase 6). Structurally separate stateless session (own cookie, own signing secret) from the internal one; enumeration-resistant request, HMAC-hashed single-use codes, attempt limit, rate limiting — see `DECISIONS.md` 019. The only external-user entry path                                                                                                                                                   |
 | Portal answering | Render `template_snapshot`, autosave, evidence upload | ✅ BUILT (Phase 7). Shares the Phase 5 renderer/evaluator with the builder preview; write access is locked once an assessment leaves `sent`/`in_progress` — see `DECISIONS.md` 020                                                                                                                                                                                                                                          |
+| Browser testing  | Playwright, desktop + mobile Chromium                 | ✅ BUILT (2026-08-18). Covers protected-route return behavior, safe login failures, internal/portal session isolation, primary admin navigation, role denial, vendor portal login, and OTP request failure handling. See `e2e/` and `docs/TEST-CHECKLIST.md`.                                                                                                                                                               |
 
 ## 3. Actors
 

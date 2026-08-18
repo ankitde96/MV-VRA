@@ -52,6 +52,7 @@ is accepted only in development; other environments continue to require a genera
 | `npm run lint`                                  | ESLint                                                                                                                                            |
 | `npm run typecheck`                             | `next typegen` (route types) then `tsc --noEmit`                                                                                                  |
 | `npm run test` / `test:watch` / `test:coverage` | Vitest                                                                                                                                            |
+| `npm run test:e2e` / `test:e2e:ui`              | Playwright browser journeys in desktop Chromium and a Pixel 7 viewport; requires seeded development data                                          |
 | `npm run db:indexes`                            | Build MongoDB indexes                                                                                                                             |
 | `npm run db:seed`                               | Bootstrap workspace, super-admin user, mitigation-guidance library — required on every fresh env                                                  |
 | `npm run db:seed-questionnaire`                 | Import `docs/questionnaires/wfpl-vendor-risk-assessment-v2.0.csv` as a published template. Idempotent — safe to re-run, skips if already present. |
@@ -64,3 +65,18 @@ is accepted only in development; other environments continue to require a genera
 MVP Phases 0–11 and two post-MVP UI revamp rounds are complete — see `docs/HANDOVER.md` for
 current state (updated every session, read it first) and `docs/ARCHITECTURE.md` for the
 system map.
+
+## Browser tests
+
+The browser suite expects the development fixtures documented above. On a fresh database:
+
+```bash
+npm run db:seed
+npm run db:seed-questionnaire
+npx playwright install chromium
+npm run test:e2e
+```
+
+Playwright starts `npm run dev` automatically unless an existing local server is already
+available. Failure traces, screenshots, and videos are written under ignored test-artifact
+directories; no test mutates or deletes application records.

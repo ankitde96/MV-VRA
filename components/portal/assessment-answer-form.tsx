@@ -57,11 +57,15 @@ export function AssessmentAnswerForm({
   const [savedAtByControl, setSavedAtByControl] = useState<
     Record<string, Date>
   >({});
+  const [saveErrorsByControl, setSaveErrorsByControl] = useState<
+    Record<string, string>
+  >({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [currentSection, setCurrentSection] = useState(0);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pendingValues = useRef<Record<string, AnswersMap[string]>>({});
 
   const visibility = computeVisibility(schema, answers);
   const visibleSections = schema.sections
@@ -87,40 +91,66 @@ export function AssessmentAnswerForm({
     );
   }).length;
 
-  const saveAnswer = useCallback(
-    (controlId: string, value: AnswersMap[string]) => {
-      clearTimeout(saveTimers.current[controlId]);
-      saveTimers.current[controlId] = setTimeout(async () => {
-        setSavingControlIds((prev) => new Set(prev).add(controlId));
-        try {
-          const response = await fetch(
-            `/api/portal/assessments/${assessmentId}/responses/${controlId}`,
-            {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ value }),
-            },
-          );
-          // DESIGN-SYSTEM.md §7 rule 1: "Autosave, visibly... Never rely on a final submit
-          // button holding an hour of work." A persistent "Saved 14:32" beats a transient
-          // "Saving…" that vanishes the instant the request resolves — the vendor should be
-          // able to glance back later and confirm their last edit actually landed.
-          if (response.ok) {
-            setSavedAtByControl((prev) => ({
-              ...prev,
-              [controlId]: new Date(),
-            }));
-          }
-        } finally {
-          setSavingControlIds((prev) => {
-            const next = new Set(prev);
-            next.delete(controlId);
-            return next;
-          });
+  const persistAnswer = useCallback(
+    async (controlId: string, value: AnswersMap[string]): Promise<boolean> => {
+      setSavingControlIds((prev) => new Set(prev).add(controlId));
+      setSaveErrorsByControl((prev) => {
+        const next = { ...prev };
+        delete next[controlId];
+        return next;
+      });
+      try {
+        const response = await fetch(
+          `/api/portal/assessments/${assessmentId}/responses/${controlId}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value }),
+          },
+        );
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          throw new Error(body?.message ?? "Your answer could not be saved.");
         }
-      }, SAVE_DEBOUNCE_MS);
+        // DESIGN-SYSTEM.md §7 rule 1: "Autosave, visibly... Never rely on a final submit
+        // button holding an hour of work." A persistent "Saved 14:32" beats a transient
+        // "Saving…" that vanishes the instant the request resolves — the vendor should be
+        // able to glance back later and confirm their last edit actually landed.
+        setSavedAtByControl((prev) => ({
+          ...prev,
+          [controlId]: new Date(),
+        }));
+        delete pendingValues.current[controlId];
+        return true;
+      } catch (error) {
+        setSaveErrorsByControl((prev) => ({
+          ...prev,
+          [controlId]:
+            error instanceof Error
+              ? error.message
+              : "Your answer could not be saved.",
+        }));
+        return false;
+      } finally {
+        setSavingControlIds((prev) => {
+          const next = new Set(prev);
+          next.delete(controlId);
+          return next;
+        });
+      }
     },
     [assessmentId],
+  );
+
+  const saveAnswer = useCallback(
+    (controlId: string, value: AnswersMap[string]) => {
+      pendingValues.current[controlId] = value;
+      clearTimeout(saveTimers.current[controlId]);
+      saveTimers.current[controlId] = setTimeout(() => {
+        void persistAnswer(controlId, value);
+      }, SAVE_DEBOUNCE_MS);
+    },
+    [persistAnswer],
   );
 
   function handleAnswerChange(controlId: string, value: AnswersMap[string]) {
@@ -149,6 +179,19 @@ export function AssessmentAnswerForm({
     setSubmitError(null);
     setSubmitting(true);
     try {
+      const pending = Object.entries(pendingValues.current);
+      for (const [controlId] of pending) {
+        clearTimeout(saveTimers.current[controlId]);
+      }
+      const saved = await Promise.all(
+        pending.map(([controlId, value]) => persistAnswer(controlId, value)),
+      );
+      if (saved.some((result) => !result)) {
+        setSubmitError(
+          "Some answers could not be saved. Retry them before submitting.",
+        );
+        return;
+      }
       const response = await fetch(
         `/api/portal/assessments/${assessmentId}/submit`,
         {
@@ -251,9 +294,37 @@ export function AssessmentAnswerForm({
                 />
               ) : null}
               {savingControlIds.has(question.control_id) ? (
-                <span className="text-muted-foreground text-sm">Saving…</span>
+                <span
+                  className="text-muted-foreground text-sm"
+                  aria-live="polite"
+                >
+                  Saving…
+                </span>
+              ) : saveErrorsByControl[question.control_id] ? (
+                <div className="flex items-center gap-2" role="alert">
+                  <span className="text-destructive text-sm">
+                    {saveErrorsByControl[question.control_id]}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      void persistAnswer(
+                        question.control_id,
+                        pendingValues.current[question.control_id] ??
+                          answers[question.control_id],
+                      )
+                    }
+                  >
+                    Retry save
+                  </Button>
+                </div>
               ) : savedAtByControl[question.control_id] ? (
-                <span className="text-muted-foreground text-sm">
+                <span
+                  className="text-muted-foreground text-sm"
+                  aria-live="polite"
+                >
                   Saved{" "}
                   {savedAtByControl[question.control_id].toLocaleTimeString(
                     [],

@@ -14,12 +14,9 @@ import { AppError } from "@/lib/errors";
 export function withRouteErrors<C = unknown>(
   handler: (request: NextRequest, context: C) => Promise<NextResponse>,
 ) {
-  return async (request?: NextRequest, context?: C): Promise<NextResponse> => {
+  return async (request: NextRequest, context: C): Promise<NextResponse> => {
     try {
-      if (!request) {
-        return NextResponse.json({ error: "bad_request" }, { status: 400 });
-      }
-      return await handler(request, context as C);
+      return await handler(request, context);
     } catch (error) {
       if (error instanceof AppError) {
         return NextResponse.json(
@@ -28,8 +25,8 @@ export function withRouteErrors<C = unknown>(
         );
       }
       console.error("Unhandled error in route handler", {
-        path: request?.nextUrl.pathname,
-        method: request?.method,
+        path: request.nextUrl.pathname,
+        method: request.method,
         error,
       });
       return NextResponse.json(
