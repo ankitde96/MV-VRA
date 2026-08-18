@@ -6,19 +6,10 @@
 
 ---
 
-## ⚠️ Current status: NO ROLLBACK POINT EXISTS (2026-08-13)
+## ✅ Current status: rollback baseline exists (established 2026-08-18)
 
-The repository is on `main` with **zero commits**. Nothing is tracked, so there is nothing
-to revert to. Any file deletion or overwrite right now is permanent.
-
-**Required first action:** make an initial commit so a baseline exists.
-
-```bash
-git add -A && git commit -m "Initial commit: specs and Field Guide documentation"
-git log --oneline -1        # record this SHA as the baseline below
-```
-
-Baseline SHA: `__________` (fill in after the first commit)
+Baseline SHA: `0ea5688` (`origin/main`) — `DECISIONS.md` 027. Every prior "no revert path"
+caveat in this file and in `DECISIONS.md` (010, 011, 014, 025) is resolved as of this commit.
 
 ---
 
@@ -43,21 +34,42 @@ For anything smaller, `git diff` and `git restore` are sufficient.
 Overwrite this block at the start of each risky change. One at a time.
 
 ```
-UI Revamp — full frontend redesign of internal console + vendor portal (2026-08-17, in
-progress). Touches every module under app/ and components/ except app/api/**. No schema,
-auth, or repository/service-layer changes — see docs/UI-REVAMP-PLAN.md's "Guardrails that
-survive the revamp" section for the load-bearing data-fetching chain that must not move.
+UI Revamp Round 2 — glassmorphism visual layer + KPI/KRI analytics (2026-08-18, in
+progress). See docs/UI-REVAMP-2-PLAN.md and DECISIONS.md 028.
 
-No git baseline exists (project owner's explicit choice — asked this session, declined).
-There is no revert path for this change beyond manual re-diffing; each phase must be
-verified green (npm run verify) before the next begins, since there is no "restore prior
-state" fallback.
+Safe baseline: commit 0ea5688 (origin/main) — first real rollback point this project has
+ever had. `git diff 0ea5688` / `git restore --source=0ea5688 -- <file>` both work now.
 
-Files touched: see docs/UI-REVAMP-PLAN.md "Files" section. New dependencies: recharts,
-@tanstack/react-table, motion — added this session (CONSTRAINTS.md #1, approved).
+Phase A (design tokens, in progress) — app/globals.css, app/layout.tsx (adds Lexend
+--font-display). No schema, auth, or repository/service-layer changes. Low risk: additive
+CSS custom properties + utility classes, nothing removed from the existing token set.
 
-Re-check after any revert attempt: npm run verify all green, 190 tests still pass,
-tenant-isolation smoke test (two workspaces, confirm no cross-workspace data leak).
+Phase B (next, SCHEMA-TOUCHING) will add six nullable Date fields to Assessment/Risk
+models — its own Active-plan block goes here before that phase starts, per CONSTRAINTS.md
+#2's spirit (not auth, but still "changes a MongoDB schema").
+
+Dependencies: CONSTRAINTS.md #1's per-package ask is pre-approved for this round only
+(DECISIONS.md 028) — each package actually added still gets its own DECISIONS.md entry.
+
+Re-check after any revert attempt: npm run verify all green, 190 tests still pass, risk
+badges/table cells render identically to pre-Round-2 (flat, no glass — the one thing that
+must not visually change).
+```
+
+_UI Revamp Round 1 (full frontend redesign, Phases 0–8) was built and verified 2026-08-17 —
+see `docs/features/ui-revamp.md`. Its Active plan is kept below for reference; closed out._
+
+**Closed: UI Revamp Round 1 (2026-08-17).**
+
+```
+UI Revamp — full frontend redesign of internal console + vendor portal (2026-08-17).
+Touches every module under app/ and components/ except app/api/**. No schema, auth, or
+repository/service-layer changes — see docs/UI-REVAMP-PLAN.md's "Guardrails that survive
+the revamp" section for the load-bearing data-fetching chain that must not move.
+
+No git baseline existed at the time (project owner's choice that session). New
+dependencies: recharts, @tanstack/react-table, motion — added that session (CONSTRAINTS.md
+#1, approved per-package). A git baseline now exists (commit 0ea5688) as of 2026-08-18.
 ```
 
 _Phase 11 (multi-workspace RBAC, sharing, executive roll-up) was built and verified

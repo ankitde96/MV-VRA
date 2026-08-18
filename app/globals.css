@@ -11,13 +11,19 @@
  * revamp, DECISIONS.md 025) — worst case is destructive-on-card at 6.45:1, every pairing
  * clears WCAG AA's 4.5:1. ThemeProvider (app/layout.tsx) now actually sets the `dark`
  * class; this palette is live, not dead code.
+ *
+ * UI Revamp Round 2 (DECISIONS.md 028) layers a glass/depth system on top — see the
+ * "Glass system" and "Aurora mesh" blocks below. The risk-severity tokens above are
+ * explicitly exempt from glass/gradient treatment and stay flat/solid (§2/§6) — verified
+ * every place they're consumed (RiskTierBadge, SeverityBadge, StatusBadge, table cells).
  */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
-  --font-heading: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-heading: var(--font-display);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -66,6 +72,12 @@
   --color-risk-low-surface: var(--risk-low-surface);
   --color-risk-neutral: var(--risk-neutral);
   --color-risk-neutral-surface: var(--risk-neutral-surface);
+
+  /* Glass surfaces — UI Revamp Round 2, DECISIONS.md 028. Chrome/hero/KPI cards only —
+     never risk-semantic surfaces (badges, table risk cells). See §2/§3 amendment. */
+  --color-glass-surface: var(--glass-surface);
+  --color-glass-border: var(--glass-border);
+  --color-glass-highlight: var(--glass-highlight);
 }
 
 :root {
@@ -200,6 +212,39 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 150ms;
   --duration-base: 200ms;
+
+  /*
+   * Glass system — UI Revamp Round 2, DECISIONS.md 028 (supersedes 025's blanket glass
+   * ban). Light mode uses HIGH surface opacity (80%+) per the ui-ux-pro-max skill's own
+   * pitfall list — bg-white/10-style low-opacity glass is illegible on a light backdrop
+   * and fails the §6 4.5:1 floor the moment text sits on it. Composited contrast, not the
+   * token alone, is what must clear 4.5:1 — verify in-browser, not by reading this value.
+   */
+  --glass-surface: rgb(255 255 255 / 0.72);
+  --glass-border: rgb(15 23 42 / 0.08);
+  --glass-highlight: rgb(255 255 255 / 0.5);
+  --glass-blur: 20px;
+  --glass-blur-sm: 10px;
+
+  /* Aurora mesh — hero/dashboard backdrop only, the surface glass cards float above.
+     Institutional blue family, not the amber/purple a generic "fintech" preset suggests —
+     must not compete with the locked risk-semantic palette in §3. */
+  --gradient-aurora:
+    radial-gradient(
+      ellipse 80% 50% at 20% -10%,
+      rgb(3 105 161 / 0.25),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 60% 50% at 90% 10%,
+      rgb(56 189 248 / 0.18),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 70% 60% at 50% 100%,
+      rgb(15 23 42 / 0.08),
+      transparent
+    );
 }
 
 .dark {
@@ -208,12 +253,76 @@
   --shadow-overlay: 0 12px 32px 0 rgb(0 0 0 / 0.5);
   --gradient-hero: linear-gradient(135deg, #0369a1 0%, #020617 100%);
   --gradient-accent: linear-gradient(90deg, #0369a1 0%, #38bdf8 100%);
+
+  --glass-surface: rgb(15 23 42 / 0.55);
+  --glass-border: rgb(148 163 184 / 0.16);
+  --glass-highlight: rgb(148 163 184 / 0.12);
+
+  --gradient-aurora:
+    radial-gradient(
+      ellipse 80% 50% at 20% -10%,
+      rgb(56 189 248 / 0.22),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 60% 50% at 90% 10%,
+      rgb(3 105 161 / 0.28),
+      transparent
+    ),
+    radial-gradient(ellipse 70% 60% at 50% 100%, rgb(2 6 23 / 0.6), transparent);
 }
 
 @theme inline {
   --shadow-card: var(--shadow-card);
   --shadow-float: var(--shadow-float);
   --shadow-overlay: var(--shadow-overlay);
+  --color-glass-surface: var(--glass-surface);
+  --color-glass-border: var(--glass-border);
+  --color-glass-highlight: var(--glass-highlight);
+}
+
+/*
+ * Glass utilities — UI Revamp Round 2. `.glass-panel` is the one class feature code should
+ * reach for; it bundles surface + blur + border + highlight ring so no component hand-rolls
+ * `backdrop-blur` + a bespoke border each time (and risks the light-mode-illegible mistake
+ * above). Scope: page chrome, hero, KPI/stat cards, modals/popovers. NEVER apply to a
+ * severity/tier badge or a risk-colored table cell — those stay flat per §2/§6.
+ */
+.glass-panel {
+  background: var(--glass-surface);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-highlight),
+    var(--shadow-card);
+}
+
+.glass-panel-sm {
+  background: var(--glass-surface);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur-sm));
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
+}
+
+.aurora-backdrop {
+  background-image: var(--gradient-aurora);
+}
+
+/* Grain overlay — hero only, disabled under prefers-reduced-motion/prefers-contrast:more.
+   Applied via a pseudo-element in the hero component so it never intercepts pointer events. */
+.grain-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  opacity: 1;
+}
+
+@media (prefers-contrast: more) {
+  .glass-panel,
+  .glass-panel-sm {
+    background: var(--card);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 /*

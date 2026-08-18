@@ -37,30 +37,38 @@ portal gets designed for someone who did not ask to be there.
 
 ## 2. Style direction
 
-> **AMENDED 2026-08-17 — see `DECISIONS.md` 025.** The project owner asked for a bolder,
-> "catchy" enterprise-SaaS treatment over the pure-Swiss direction below. The base Swiss
-> discipline (flat surfaces, 1px borders, strict spacing, no decorative motion) stays the
-> default for **tables, forms, and anywhere a risk color carries meaning**. Gradient accent
-> bands, `shadow-md` card elevation, a larger display type scale, and count-up/entry
-> animation are now sanctioned for page headers, the dashboard hero, and KPI/stat cards
-> only — never on severity badges, table rows, or form fields. See §3's new Elevation &
-> Gradient tokens and `docs/UI-REVAMP-PLAN.md`.
+> **AMENDED 2026-08-18 — see `DECISIONS.md` 028 (supersedes 025).** The project owner asked
+> for a full modern-SaaS glass treatment app-wide — **Glassmorphism is no longer rejected.**
+> Glass surfaces, aurora-mesh backdrops, and depth are now sanctioned across page chrome,
+> hero, KPI/stat cards, modals, popovers, and navigation. The one boundary that does not
+> move: **risk-semantic surfaces stay flat, solid, high-contrast** — severity/tier/status
+> badges and any table cell carrying a risk color. Colorblind reviewers make Tier-1 calls off
+> these; frosting them degrades the one signal that must stay unambiguous. See §3's Glass
+> system tokens and `docs/UI-REVAMP-2-PLAN.md`.
+>
+> **AMENDED 2026-08-17 — see `DECISIONS.md` 025.** (Partially superseded by 028 above, kept
+> for history.) The project owner asked for a bolder, "catchy" enterprise-SaaS treatment
+> over the pure-Swiss direction below. Gradient accent bands, `shadow-md` card elevation, a
+> larger display type scale, and count-up/entry animation were sanctioned for page headers,
+> the dashboard hero, and KPI/stat cards only.
 
-**Minimalism & Swiss Style** (`styles.csv` row 1). Selected because the skill's data lists it
-as best-for "enterprise apps, dashboards, professional tools", rates it `✓ WCAG AAA`,
-`⚡ Excellent` performance, and `Tailwind 10/10`.
+**Minimalism & Swiss Style** (`styles.csv` row 1) remains the base discipline for **tables,
+forms, and risk-semantic surfaces**: flat, 1px borders, strict 4px spacing, strong type
+hierarchy. Selected originally because the skill's data lists it as best-for "enterprise
+apps, dashboards, professional tools", rates it `✓ WCAG AAA`, `⚡ Excellent` performance.
 
-Explicitly rejected for this product:
+Now layered with **Glassmorphism** (`styles.csv` row — "Modern SaaS, financial dashboards,
+high-end corporate... Best For") everywhere else — chrome, hero, cards, overlays. Its own
+data flags "⚠ Ensure 4.5:1" as the condition, not a rejection; §3's glass tokens use
+high-opacity surfaces specifically so composited text still clears that floor (verified
+in-browser per phase, not assumed from the token).
 
-- **Glassmorphism** — the SaaS default, but its own data warns against it for "critical
-  accessibility" and "data-heavy dashboards". Frosted panels behind a dense risk table
-  reduce legibility for no gain.
-- **Neumorphism / Claymorphism** — both flagged "Do Not Use For: data-heavy dashboards",
-  "finance", "legal apps". This is a compliance tool; soft toy-like depth reads as unserious.
-- **Aurora UI / gradients** — "Do Not Use For: data-heavy dashboards".
+Still excluded, no change:
 
-Practically: flat surfaces, 1px borders instead of shadows, a strict 4px spacing scale,
-strong type hierarchy, and **no decorative motion anywhere**.
+- **Neumorphism / Claymorphism** — flagged "Do Not Use For: data-heavy dashboards",
+  "finance", "legal apps". Soft toy-like depth reads as unserious for a compliance tool.
+- **Decorative motion outside the sanctioned set** — count-up, entry stagger, and hover
+  feedback are allowed (§3 Motion); ambient/looping decorative animation is not.
 
 ---
 
@@ -154,6 +162,41 @@ rows, form fields, or severity/tier/status indicators.
 --gradient-hero: linear-gradient(135deg, #0369a1 0%, #0f172a 100%);
 --gradient-accent: linear-gradient(90deg, #0369a1 0%, #38bdf8 100%);
 ```
+
+### Glass system (added 2026-08-18, `DECISIONS.md` 028)
+
+App-wide now — chrome, hero, KPI/stat cards, modals, popovers, nav. **Never** risk-semantic
+surfaces (§2). Implemented in `app/globals.css` as `.glass-panel` / `.glass-panel-sm`
+utility classes so no component hand-rolls `backdrop-filter` independently.
+
+```css
+--glass-surface: rgb(
+  255 255 255 / 0.72
+); /* light — high opacity, not the SaaS-default 10% */
+--glass-border: rgb(15 23 42 / 0.08);
+--glass-highlight: rgb(
+  255 255 255 / 0.5
+); /* inset top highlight, the "light source" cue */
+--glass-blur: 20px;
+--glass-blur-sm: 10px; /* nested/dense glass (cards inside a glass hero) */
+
+/* dark mode */
+--glass-surface: rgb(15 23 42 / 0.55);
+--glass-border: rgb(148 163 184 / 0.16);
+--glass-highlight: rgb(148 163 184 / 0.12);
+```
+
+Rules:
+
+- Light-mode glass surface opacity is **72%+**, not the ~10% a generic glassmorphism preset
+  suggests — below ~70% white, body text fails 4.5:1 against a busy aurora backdrop. This was
+  flagged by the `ui-ux-pro-max` skill's own pitfall list before it was hit in practice.
+- `@media (prefers-contrast: more)` falls back `.glass-panel` to a flat `--card` background,
+  no blur — glass is a decoration, not a dependency for reading the page.
+- The aurora-mesh backdrop (`--gradient-aurora`, `.aurora-backdrop`) stays in the
+  institutional blue family (`#0369a1`/`#38bdf8`) already used for `--primary` — not the
+  amber/purple a generic "fintech" preset suggests, which would compete with the locked
+  risk-severity palette above.
 
 ### Motion
 

@@ -23,6 +23,78 @@
 
 ---
 
+## [2026-08-18] 028 — UI Revamp Round 2: Glassmorphism un-rejected app-wide; risk-semantic surfaces stay flat; blanket dependency pre-approval for this round
+
+**Decision:** Two things settled for UI Revamp Round 2 (`docs/UI-REVAMP-2-PLAN.md`):
+
+1. **`DESIGN-SYSTEM.md` §2's explicit rejection of Glassmorphism is lifted.** Glass surfaces
+   (`--glass-surface`/`--glass-border`/`--glass-highlight`, `.glass-panel`/`.glass-panel-sm`
+   utilities), an aurora-mesh backdrop (`--gradient-aurora`, kept in the institutional blue
+   family — not a generic amber/purple fintech preset), and depth are now sanctioned across
+   page chrome, hero, KPI/stat cards, modals, popovers, and navigation — supersedes 025's
+   narrower "headers/hero/stat-cards only" gradient scope, extending it to glass and to the
+   whole app. **The one boundary that does not move**: severity/tier/status badges and any
+   table cell carrying a risk color stay flat, solid, border-first — exactly 025/§2's
+   original rule, unchanged. A `.dashboard`/`ExecRollupDashboard`/vendor scorecard KPI tile
+   may be glass; a `RiskTierBadge` never is.
+2. **`CONSTRAINTS.md` #1 (no new dependency without asking first) is pre-approved for this
+   round only** — the project owner explicitly lifted it ("remove the restriction on adding
+   new libraries... add whatever fits best") rather than requiring a stop-and-ask per
+   package. This is a scoped exception for UI Revamp Round 2, not a standing change to
+   `CONSTRAINTS.md` itself; each dependency actually added still gets its own entry here
+   (name, version, why) so the trail exists even without a prior ask.
+
+**Context:** Round 1 (`DECISIONS.md` 025/026) shipped a competent flat console but the
+project owner's read after seeing it live: "still looks basic." An internal pilot is
+imminent. `docs/DESIGN-SYSTEM.md` §2 had explicitly named Glassmorphism as rejected
+("Frosted panels behind a dense risk table reduce legibility for no gain") — that specific
+rejection is what's being reversed here, not the accessibility floor it was protecting.
+
+**Rationale:** The `ui-ux-pro-max` skill's own data rates Glassmorphism `Best For: ...
+financial dashboards, high-end corporate` with the caveat `⚠ Ensure 4.5:1` — a condition to
+satisfy, not a reason to reject outright. §3's new glass tokens satisfy it structurally: light
+glass surfaces are set to 72%+ opacity (not the ~10% a naive glassmorphism preset uses, which
+the skill's own pitfall list calls out as illegible), and `@media (prefers-contrast: more)`
+degrades `.glass-panel` to a flat `--card` background with no blur — glass is decoration, not
+a reading dependency. Keeping risk-semantic surfaces flat is the one non-negotiable carried
+forward unchanged from every prior style decision (010-era Swiss direction, 025's gradient
+scoping) — the reason has not changed: colorblind reviewers make Tier-1 calls off these
+colors, and frosting a red badge is a legibility regression with zero upside. Pre-approving
+dependencies for this round (rather than a stop-and-ask per package) matches how the owner
+actually wants to move here — fast, with the trail kept via this file rather than via a gate
+before each install.
+
+**Alternatives rejected:**
+
+- _Glass on chrome only, keep content cards flat_ — considered and explicitly offered; the
+  owner chose full-app glass instead, judging the chrome-only version would still read as
+  "basic."
+- _No exemption for risk-semantic surfaces, glass everywhere_ — also offered explicitly and
+  not chosen; the risk-color legibility argument was accepted without qualification.
+- _Standing removal of `CONSTRAINTS.md` #1_ — rejected; the ask was for this round's freedom
+  to move fast, not a permanent policy change to a constraint that protects future sessions
+  too. Left the constraint text as-is; recorded the scoped exception here instead.
+
+**Consequences:** Any component built or touched from Round 2 forward that renders a
+severity/tier/status value must be checked against this rule before it ships — `git grep` for
+`risk-critical\|risk-high\|risk-medium\|risk-low` combined with `glass-panel` is a fast
+sanity check if this is ever in doubt. Each new dependency this round still needs its own
+`DECISIONS.md` entry recording name/version/why, even though no per-package ask happened
+first — don't let "pre-approved" become "undocumented." `docs/UI-REVAMP-2-PLAN.md` §Decision
+Log has the full brainstorming-session trail (KPI/KRI scope, additive schema fields, phased
+sequencing) this entry doesn't repeat.
+
+**Decided by:** Claude Opus 5 (`claude-opus-5`) for the design/brainstorming session and this
+decision; Claude Sonnet 5 (`claude-sonnet-5`) implementing Phase A (token layer) — at the
+project owner's direction, confirmed via `AskUserQuestion` (glass scope, KPI data scope,
+surfaces, sequencing) then explicit follow-up lifting the dependency constraint.
+
+**Supersedes:** 025 (narrows what 025 restricted — extends the sanctioned-surface list from
+gradient-only/headers-hero-cards to glass+gradient/app-wide, keeping 025's risk-semantic
+exemption intact).
+
+---
+
 ## [2026-08-18] 027 — Git baseline finally established; `.gitignore`/`.env.example` added as prerequisites, not scope creep
 
 **Decision:** Ran `git init`-equivalent (the repo already had `origin` configured but zero
