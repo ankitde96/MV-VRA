@@ -83,6 +83,12 @@ export const questionSchema = z
         accept: z.array(z.string().min(1)).optional(),
       })
       .optional(),
+    // Free-text guidance on what evidence to attach/reference when answering — distinct
+    // from `evidence.required`/`evidence.accept` above, which govern the file-upload
+    // control itself. Optional and unset by default; when absent, the vendor sees nothing
+    // extra for that question (no placeholder, no empty hint block) — the renderer only
+    // shows this line at all when it's non-empty.
+    evidence_hint: z.string().min(1).optional(),
   })
   .refine(
     (q) =>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "@/lib/errors";
+import { questionsSchemaSchema } from "@/lib/questionnaire/schema";
 import { validateQuestionsSchemaStructure } from "@/lib/questionnaire/validate-schema";
 import type { QuestionsSchema } from "@/lib/questionnaire/schema";
 
@@ -21,6 +22,39 @@ describe("validateQuestionsSchemaStructure", () => {
         ]),
       ),
     ).not.toThrow();
+  });
+
+  it("accepts an optional non-empty evidence hint", () => {
+    expect(
+      questionsSchemaSchema.safeParse(
+        schema([
+          {
+            control_id: "Q1",
+            text: "Q1",
+            type: "text",
+            required: true,
+            evidence_hint: "Attach the board-approved policy.",
+          },
+          { control_id: "Q2", text: "Q2", type: "text", required: true },
+        ]),
+      ).success,
+    ).toBe(true);
+  });
+
+  it("rejects an empty evidence hint", () => {
+    expect(
+      questionsSchemaSchema.safeParse(
+        schema([
+          {
+            control_id: "Q1",
+            text: "Q1",
+            type: "text",
+            required: true,
+            evidence_hint: "",
+          },
+        ]),
+      ).success,
+    ).toBe(false);
   });
 
   it("accepts a show_if that references an earlier control_id", () => {

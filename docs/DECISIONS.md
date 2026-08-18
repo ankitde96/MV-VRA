@@ -23,6 +23,62 @@
 
 ---
 
+## [2026-08-18] 036 — `evidence_hint`: a dedicated schema field, not folded into question text
+
+**Decision:** `Question` (`lib/questionnaire/schema.ts`) gains a new optional field,
+`evidence_hint: string`, separate from the existing `evidence: { required, accept }` (which
+governs the file-upload control itself, not guidance text). The shared `QuestionLabel`
+(`components/questionnaire/question-renderer.tsx` — the one component both the builder
+preview and the vendor portal render through) shows it as a muted line under the question
+when set, and renders nothing at all when unset — no placeholder, no empty line. The
+template builder (`components/templates/template-builder-form.tsx`,
+`components/templates/builder-state.ts`) gained a matching "Evidence hint" input per
+question, hydrated/serialized like every other per-question field. `scripts/seed-
+questionnaire-template.ts` now writes the source CSV's "Evidence Required" column into
+`evidence_hint` instead of appending it to the question's own `text` (which `DECISIONS.md`
+035 had done as an interim measure). The already-seeded dev-DB template was deleted and
+re-created with the corrected shape — it had zero assessments against it, so this was a
+clean re-seed, not a migration.
+
+**Context:** Direct follow-up: "Let's break this... add a new field... name it Evidence
+Hint... if nothing is filled here then the vendor won't see anything for that particular
+question. Every question will have the Evidence Hint field."
+
+**Rationale:** Folding evidence guidance into `text` (035's approach) worked but conflated
+two different things a template author edits independently — the question itself, and what
+to submit as proof. A dedicated field lets the builder UI, the Zod validation, and the
+renderer each treat them as what they are, and matches the "if nothing filled, show
+nothing" requirement exactly (a substring check on `text` couldn't distinguish "no hint"
+from "hint happens to be empty" as cleanly as an optional field genuinely being absent).
+Putting the render logic in `QuestionLabel` — not duplicated in the portal answer form or
+the builder preview — is the same reasoning `QuestionRenderer` itself already documents:
+those two surfaces must never diverge on what a vendor sees for a given question.
+
+**Alternatives rejected:**
+
+- _Add `evidence_hint` to the existing `evidence` object instead of top-level_ — rejected;
+  `evidence.required`/`evidence.accept` only ever apply to `type: "file"` questions (they
+  configure the upload control), but every question — including the 125 Yes/No ones and the
+  5 text ones — can carry an evidence hint. Nesting it under `evidence` would have made it
+  look conditional on `evidence.required` being true, which isn't the intent.
+- _Migrate the already-seeded template's `text` field via a data migration script instead of
+  re-seeding_ — rejected as unnecessary complexity; nothing referenced the dev-seeded
+  template yet (checked: zero assessments), so deleting and re-running the (now-corrected)
+  idempotent seed script was strictly simpler and produced an identical end state.
+
+**Consequences:** Any future importer or template author now has a real field for this —
+`docs/questionnaires/`-sourced content or hand-built templates alike. One of the 130 WFPL
+questions (source row 121, "Are phishing simulations conducted?") has no evidence hint at
+all — the source CSV's evidence cell was blank for it — and correctly renders nothing,
+which is the intended behavior, not a bug to "fix" by inventing placeholder text.
+
+**Decided by:** Claude Sonnet 5 (`claude-sonnet-5`), at the project owner's direction.
+
+**Supersedes:** Corrects 035's choice to fold evidence guidance into question `text` —
+superseded by the dedicated field this entry introduces.
+
+---
+
 ## [2026-08-18] 035 — Real client questionnaire (WFPL Vendor Risk Assessment v2.0) seeded as a published template; all 130 questions forced to single_select Yes/No per explicit direction; control_ids generated fresh, not taken from the source S.No column
 
 **Decision:** The client-provided CSV (`WFPL- Vendor Risk Assessment Questionnaire v2.0.csv`,

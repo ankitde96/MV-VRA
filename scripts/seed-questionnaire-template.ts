@@ -14,6 +14,12 @@
  * checklist confirmation and stays that way — see `TEXT_TYPE_QUESTION_NUMBERS`'s own
  * comment for how the 5 were identified and why the rest weren't included.
  *
+ * The source CSV's "Evidence Required" column goes into `Question.evidence_hint`
+ * (`lib/questionnaire/schema.ts`) — a dedicated field, not folded into the question's own
+ * `text` (an earlier version of this script did that; corrected on request). Every question
+ * has the field available; it's simply left unset when the source cell is blank, and the
+ * shared `QuestionLabel` renderer shows nothing at all in that case — no empty hint line.
+ *
  * Idempotent by `template_key` — a second run finds the existing template and exits without
  * creating a duplicate or a new version; it does NOT update an already-published template in
  * place (CONSTRAINTS.md #11 — publishing freezes it). If the source CSV changes, bump
@@ -172,20 +178,25 @@ function buildSchemaFromCsv(rows: string[][]): QuestionsSchema {
 
     questionNumber += 1;
     const controlId = `WFPL-${String(questionNumber).padStart(3, "0")}`;
-    const text = evidenceText
-      ? `${questionText}\n\nEvidence: ${evidenceText}`
-      : questionText;
     const isTextType = TEXT_TYPE_QUESTION_NUMBERS.has(questionNumber);
+    const evidenceHint = evidenceText || undefined;
 
     currentSection.questions.push(
       isTextType
-        ? { control_id: controlId, text, type: "text", required: true }
+        ? {
+            control_id: controlId,
+            text: questionText,
+            type: "text",
+            required: true,
+            evidence_hint: evidenceHint,
+          }
         : {
             control_id: controlId,
-            text,
+            text: questionText,
             type: "single_select",
             options: ["Yes", "No"],
             required: true,
+            evidence_hint: evidenceHint,
           },
     );
   }

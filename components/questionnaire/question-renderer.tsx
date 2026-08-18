@@ -159,14 +159,28 @@ export function QuestionRenderer({
   }
 }
 
+/**
+ * Renders the evidence hint (`Question.evidence_hint`) below the label, only when it's
+ * actually set — an unset hint shows nothing, no placeholder, no empty line (DECISIONS.md).
+ * Lives in this shared file, not duplicated in the portal answer form or builder preview,
+ * for the same reason `QuestionRenderer` itself is shared: those two must never diverge on
+ * what a vendor sees for a given question (this file's own docstring).
+ */
 export function QuestionLabel({ question }: { question: Question }) {
   return (
-    <Label
-      htmlFor={`q_${question.control_id}`}
-      className="flex items-baseline gap-1"
-    >
-      {question.text}
-      {question.required ? <span className="text-destructive">*</span> : null}
-    </Label>
+    <div>
+      <Label
+        htmlFor={`q_${question.control_id}`}
+        className="flex items-baseline gap-1"
+      >
+        {question.text}
+        {question.required ? <span className="text-destructive">*</span> : null}
+      </Label>
+      {question.evidence_hint ? (
+        <p className="text-muted-foreground mt-1 text-xs">
+          Evidence: {question.evidence_hint}
+        </p>
+      ) : null}
+    </div>
   );
 }

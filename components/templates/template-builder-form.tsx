@@ -419,6 +419,21 @@ function QuestionEditor({
         ) : null}
       </div>
 
+      <div className="space-y-1">
+        <Label>Evidence hint</Label>
+        <Input
+          placeholder="e.g. Board-approved policy document, approval minutes"
+          value={question.evidenceHint}
+          onChange={(e) => onChange({ evidenceHint: e.target.value })}
+        />
+        <p className="text-muted-foreground text-xs">
+          Shown to the vendor under the question as guidance on what to
+          reference or attach. Leave blank to show nothing — separate from
+          &quot;Requires evidence upload&quot; above, which controls the
+          file-upload control itself.
+        </p>
+      </div>
+
       <div className="space-y-2">
         <label className="flex items-center gap-2 text-sm">
           <Checkbox

@@ -28,6 +28,7 @@ export interface BuilderQuestion {
   required: boolean;
   evidenceRequired: boolean;
   evidenceAccept: string;
+  evidenceHint: string;
   showIfEnabled: boolean;
   showIfMode: "all" | "any";
   conditions: BuilderCondition[];
@@ -58,6 +59,7 @@ export function emptyQuestion(): BuilderQuestion {
     required: true,
     evidenceRequired: false,
     evidenceAccept: "",
+    evidenceHint: "",
     showIfEnabled: false,
     showIfMode: "all",
     conditions: [],
@@ -155,6 +157,9 @@ export function serializeSchema(sections: BuilderSection[]): QuestionsSchema {
                 },
               }
             : {}),
+          ...(question.evidenceHint.trim()
+            ? { evidence_hint: question.evidenceHint.trim() }
+            : {}),
         };
       }),
     })),
@@ -180,6 +185,7 @@ export function hydrateSchema(schema: QuestionsSchema): BuilderSection[] {
         required: question.required,
         evidenceRequired: question.evidence?.required ?? false,
         evidenceAccept: question.evidence?.accept?.join(", ") ?? "",
+        evidenceHint: question.evidence_hint ?? "",
         showIfEnabled: Boolean(showIf),
         showIfMode: mode,
         conditions: conditions.map((c) => ({
