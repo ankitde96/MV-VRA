@@ -202,12 +202,22 @@ Each phase ends with `npm run verify` green and its own commit.
 - `npm run verify` clean throughout — no schema/service/test changes this phase, only new
   UI consuming Phase B's existing `getWorkspaceAnalytics()`.
 
-### Phase D — Executive roll-up rebuild
+### Phase D — Executive roll-up rebuild ✅ (this session)
 
-- Build the two spec'd-but-missing charts: grouped horizontal bar (vendors per tier per
-  workspace), CAP age-bucket bar; plus stacked-bar tier distribution and optional radar
-  (control-domain coverage, capped 5–8 axes, always with a table). Biggest gap-to-spec in
-  the app — currently 43 lines of plain cards.
+- Built the two spec'd-but-missing charts: `TierComparisonChart` (grouped horizontal bar,
+  vendors per tier per workspace, sorted descending) and `CapAgeBucketChart` (overdue CAPs
+  by age bucket per workspace). Both gated to render only when >1 authorized workspace —
+  nothing to compare with just one. Radar (control-domain coverage) explicitly **not**
+  built — no code anywhere maps risks to a control-domain taxonomy, so it would fabricate
+  data; §5 marks it optional.
+- Extended `getRollupAnalyticsSummary()` with `vendors_by_tier`/`cap_age_buckets`, same
+  per-membership auth loop (`DECISIONS.md` 024/029).
+- Caught and fixed a real bug via live browser verification (not assumed): the CAP-bucket
+  chart's workspace names collided with its legend in vertical orientation — fixed by
+  switching to horizontal, matching the tier-comparison chart. `DECISIONS.md` 031.
+- Aurora hero, glass `RollupWorkspaceCard`. Existing per-workspace severity chart/tables
+  unchanged (still useful).
+- 202/202 tests (1 new), `npm run verify` clean.
 
 ### Phase E — Per-vendor risk scorecard
 

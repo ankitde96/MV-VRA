@@ -619,6 +619,16 @@ export async function getWorkspaceAnalytics(
   };
 }
 
+// Named fields, not "0-30"/"90+" string keys — those became recharts dataKeys and
+// ChartContainer CSS custom-property suffixes in CapAgeBucketChart, where "+" and digit-led
+// keys are unreliable across browsers. `label` on each carries the display string instead.
+export interface CapAgeBuckets {
+  d0to30: number;
+  d31to60: number;
+  d61to90: number;
+  d90plus: number;
+}
+
 export interface WorkspaceKriSummary {
   workspace_id: string;
   workspace_name: string;
@@ -627,6 +637,15 @@ export interface WorkspaceKriSummary {
   open_critical_high_count: number;
   overdue_cap_count: number;
   reassessment_overdue_count: number;
+  // Phase D (docs/UI-REVAMP-2-PLAN.md) — the grouped-bar tier comparison and CAP
+  // age-bucket charts DESIGN-SYSTEM.md §5 specifies and Round 1 never built.
+  vendors_by_tier: {
+    tier1: number;
+    tier2: number;
+    tier3: number;
+    unscored: number;
+  };
+  cap_age_buckets: CapAgeBuckets;
 }
 
 export interface RollupAnalyticsResult {
@@ -665,24 +684,23 @@ export async function getRollupAnalyticsSummary(
     const workspaceId = membership.workspace_id;
 
     const [
-      tier1Count,
+      tierCounts,
       openCriticalHighCount,
-      overdueCapCount,
+      overdueCapTasks,
       reassessmentOverdueCount,
     ] = await Promise.all([
-      Vendor.countDocuments({
-        workspace_id: workspaceId,
-        inherent_risk_tier: 1,
-      }),
+      Vendor.aggregate([
+        { $match: { workspace_id: workspaceId } },
+        { $group: { _id: "$inherent_risk_tier", count: { $sum: 1 } } },
+      ]),
       Risk.countDocuments({
         workspace_id: workspaceId,
         status: { $in: ["open", "mitigating"] },
         severity: { $in: ["critical", "high"] },
       }),
-      Risk.countDocuments({
-        workspace_id: workspaceId,
-        "cap_tasks.status": "overdue",
-      }),
+      Risk.find({ workspace_id: workspaceId, "cap_tasks.status": "overdue" })
+        .select("cap_tasks")
+        .lean(),
       Assessment.countDocuments({
         workspace_id: workspaceId,
         status: "completed",
@@ -690,15 +708,51 @@ export async function getRollupAnalyticsSummary(
       }),
     ]);
 
+    const vendorsByTier = { tier1: 0, tier2: 0, tier3: 0, unscored: 0 };
+    for (const row of tierCounts as { _id: number | null; count: number }[]) {
+      if (row._id === 1) vendorsByTier.tier1 = row.count;
+      else if (row._id === 2) vendorsByTier.tier2 = row.count;
+      else if (row._id === 3) vendorsByTier.tier3 = row.count;
+      else vendorsByTier.unscored += row.count;
+    }
+
+    const capAgeBuckets: CapAgeBuckets = {
+      d0to30: 0,
+      d31to60: 0,
+      d61to90: 0,
+      d90plus: 0,
+    };
+    let overdueCapCount = 0;
+    for (const risk of overdueCapTasks as {
+      cap_tasks: { status: string; due_date: Date }[];
+    }[]) {
+      for (const task of risk.cap_tasks) {
+        if (task.status !== "overdue") continue;
+        overdueCapCount += 1;
+        const overdueDays = daysBetween(now, task.due_date);
+        const key: keyof CapAgeBuckets =
+          overdueDays <= 30
+            ? "d0to30"
+            : overdueDays <= 60
+              ? "d31to60"
+              : overdueDays <= 90
+                ? "d61to90"
+                : "d90plus";
+        capAgeBuckets[key] += 1;
+      }
+    }
+
     workspaces.push({
       workspace_id: workspaceId.toString(),
       workspace_name:
         nameById.get(workspaceId.toString()) ?? "Unknown workspace",
       role: membership.role as Role,
-      tier1_count: tier1Count,
+      tier1_count: vendorsByTier.tier1,
       open_critical_high_count: openCriticalHighCount,
       overdue_cap_count: overdueCapCount,
       reassessment_overdue_count: reassessmentOverdueCount,
+      vendors_by_tier: vendorsByTier,
+      cap_age_buckets: capAgeBuckets,
     });
   }
 

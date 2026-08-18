@@ -67,7 +67,16 @@ against the same seeded data. One pre-existing recharts hydration quirk noted, n
 regression (DECISIONS.md 030) — reproduces only on client-side soft-nav between chart-heavy
 pages, never on a fresh load.
 
-Phase D (executive roll-up rebuild) next — no schema change expected, its own Active-plan
+Phase D (executive roll-up rebuild) — DONE. app/(internal)/rollup/page.tsx: aurora hero,
+two new cross-workspace charts (TierComparisonChart, CapAgeBucketChart) gated to render only
+when >1 authorized workspace, RollupWorkspaceCard re-skinned glass. Extended
+getRollupAnalyticsSummary() (analytics.ts) with vendors_by_tier + cap_age_buckets — same
+per-membership loop, additive fields only. Verified live in Chrome light+dark; caught and
+fixed a real label-collision bug (CapAgeBucketChart's workspace names overlapped the legend
+in vertical orientation — switched to horizontal, DECISIONS.md 031). No schema/auth/test
+regressions — 202/202 tests, npm run verify clean.
+
+Phase E (per-vendor risk scorecard) next — no schema change expected, its own Active-plan
 note if that changes.
 
 Dependencies: CONSTRAINTS.md #1's per-package ask is pre-approved for this round only

@@ -23,6 +23,70 @@
 
 ---
 
+## [2026-08-18] 031 — UI Revamp Round 2, Phase D: executive roll-up gets its two missing DESIGN-SYSTEM.md §5 charts; a real label-collision caught by live verification, fixed by orientation, not a workaround
+
+**Decision:** Built the two roll-up charts `DESIGN-SYSTEM.md` §5 specified in Round 1 but
+were never built — the executive roll-up (`app/(internal)/rollup/page.tsx`) had zero charts
+despite being the board-reporting surface, the single biggest gap-to-spec in the app.
+
+1. `TierComparisonChart` — grouped horizontal bar, vendors per tier per workspace, sorted by
+   Tier 1 count descending, per §5's literal spec ("Horizontal bar, grouped, sorted
+   descending").
+2. `CapAgeBucketChart` — overdue CAP tasks by age bucket, per workspace. Built vertical
+   first (matching `RiskAgingChart`'s single-workspace pattern), but live browser
+   verification (light + dark) showed a real defect: with only 2-3 workspaces, full
+   workspace names as vertical-bar x-axis category labels collided with the legend row
+   below the chart. Fixed by switching to horizontal orientation (matching
+   `TierComparisonChart`) rather than truncating names or shrinking the legend — the
+   dataviz skill's own step 7 ("render it and look at it — the validator checks color, not
+   layout") is exactly what caught this; it would not have been caught by typecheck, lint,
+   or the test suite.
+3. Extended `getRollupAnalyticsSummary()` (`lib/services/analytics.ts`, Phase B) with
+   `vendors_by_tier` (full tier1-3+unscored breakdown, not just `tier1_count`) and
+   `cap_age_buckets`. Renamed the bucket keys from `"0-30"`/`"90+"`-style strings (used in
+   `RiskAgingChart`'s bucket _value_, fine there) to `d0to30`/`d90plus`-style identifiers
+   here, because in `CapAgeBucketChart` each bucket is a recharts `dataKey` _and_ a
+   `ChartContainer` config key that gets turned into a `--color-${key}` CSS custom
+   property — a leading digit and a literal `+` are not something to trust across browsers
+   as a generated custom-property/dataKey suffix, so the technical key and the display
+   label were split (`{ label: "90+ days", ... }` on a `d90plus` key).
+
+**Context:** `docs/UI-REVAMP-2-PLAN.md` Phase D. `DESIGN-SYSTEM.md` §5's chart table names
+five charts for the roll-up; Round 1 (`docs/features/ui-revamp.md`) shipped zero — this
+phase closes that gap for the two required ones (line/stacked-bar/radar were either already
+covered by other pages or explicitly optional).
+
+**Rationale:** Reusing `getExecutiveRollup()`'s existing per-membership authorization loop
+inside `getRollupAnalyticsSummary()` (rather than adding a parallel authorization path) was
+already decided in Phase B (`DECISIONS.md` 029) — this phase just adds the two new fields to
+that existing loop. The horizontal-orientation fix generalizes: any future cross-workspace
+comparison chart in this app should default to horizontal bars once workspace names are the
+category axis, not vertical — full entity names don't fit as rotated/truncated x-axis
+ticks at the scale this app's typography uses.
+
+**Alternatives rejected:**
+
+- _Truncate workspace names or rotate x-axis labels to fix the collision_ — rejected;
+  truncating a workspace's own name in its own reporting dashboard is a worse trade than
+  changing chart orientation, and rotated labels are harder to scan at a glance than a
+  horizontal bar's full-width category axis.
+- _Build the optional radar chart (control-domain coverage)_ — rejected for this phase; no
+  code anywhere maps risks/controls to a "control domain" taxonomy, so a radar chart would
+  either fabricate data or need a new taxonomy decision — out of scope for a chart-layer
+  task. `DESIGN-SYSTEM.md` §5 itself marks it optional.
+
+**Consequences:** `lib/services/analytics.ts`'s `CapAgeBuckets` interface uses
+`d0to30`/`d31to60`/`d61to90`/`d90plus` — any future consumer of `WorkspaceKriSummary` should
+use these field names, not the display-string versions `RiskAgingBucket` uses for its
+`bucket` value. The two new charts only render when `analyticsSummary.workspaces.length > 1`
+(gated in the page, not the chart component) — a single-workspace comparison chart has
+nothing to compare, so it's hidden rather than shown with one lonely bar.
+
+**Decided by:** Claude Sonnet 5 (`claude-sonnet-5`), implementing Phase D of
+`docs/UI-REVAMP-2-PLAN.md`.
+
+---
+
 ## [2026-08-18] 030 — UI Revamp Round 2, Phase C: risk-severity palette validated (one pre-existing hard-fail flagged, not fixed), demo-data seed script, recharts hydration quirk noted
 
 **Decision:** Three things settled for Phase C (dashboard rebuild):

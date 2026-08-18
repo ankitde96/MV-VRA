@@ -342,7 +342,7 @@ describe("getRollupAnalyticsSummary (integration)", () => {
       status: "active",
     });
 
-    await Vendor.create({
+    const tier1Vendor = await Vendor.create({
       workspace_id: workspaceAdmin,
       legal_name: "Rollup Tier 1 Vendor",
       domain: `rollup-analytics-tier1-${workspaceAdmin.toString()}.example`,
@@ -353,11 +353,63 @@ describe("getRollupAnalyticsSummary (integration)", () => {
       },
       inherent_risk_tier: 1,
     });
+    await Vendor.create({
+      workspace_id: workspaceAdmin,
+      legal_name: "Rollup Tier 2 Vendor",
+      domain: `rollup-analytics-tier2-${workspaceAdmin.toString()}.example`,
+      spoc: {
+        spoc_name: "S",
+        spoc_email: "s2@rollup-analytics.example",
+        spoc_phone: "+1",
+      },
+      inherent_risk_tier: 2,
+    });
+
+    const engagement = await Engagement.create({
+      workspace_id: workspaceAdmin,
+      vendor_id: tier1Vendor._id,
+      business_owner_id: new Types.ObjectId(),
+      business_unit: "Engineering",
+      functional_scope: "Rollup fixture",
+      expected_procurement_date: new Date("2026-09-01"),
+      inherent_risk_tier: 1,
+      status: "in_assessment",
+    });
+
+    // An overdue CAP task 45 days past due -> falls in the "31-60 day" bucket.
+    await Risk.create({
+      workspace_id: workspaceAdmin,
+      assessment_id: new Types.ObjectId(),
+      engagement_id: engagement._id,
+      vendor_id: tier1Vendor._id,
+      control_id: "ROLLUP-CAP-01",
+      title: "Rollup fixture risk",
+      severity: "high",
+      enterprise_risk_category: "Information Security",
+      impact_level: "high",
+      residual_score: 50,
+      status: "mitigating",
+      cap_tasks: [
+        {
+          description: "Overdue remediation",
+          owner_type: "internal",
+          owner_ref: new Types.ObjectId(),
+          due_date: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
+          status: "overdue",
+        },
+      ],
+    });
   });
 
   afterAll(async () => {
     await User.deleteOne({ _id: userId });
     await Vendor.deleteMany({
+      workspace_id: { $in: [workspaceAdmin, workspaceViewerOnly] },
+    });
+    await Engagement.deleteMany({
+      workspace_id: { $in: [workspaceAdmin, workspaceViewerOnly] },
+    });
+    await Risk.deleteMany({
       workspace_id: { $in: [workspaceAdmin, workspaceViewerOnly] },
     });
     await Workspace.deleteMany({
@@ -377,5 +429,23 @@ describe("getRollupAnalyticsSummary (integration)", () => {
         (w) => w.workspace_id === workspaceViewerOnly.toString(),
       ),
     ).toBe(false);
+  });
+
+  it("computes the full tier breakdown and CAP age buckets for Phase D's comparison charts", async () => {
+    const result = await getRollupAnalyticsSummary(userId.toString());
+    const ws = result.workspaces[0]!;
+
+    expect(ws.vendors_by_tier).toEqual({
+      tier1: 1,
+      tier2: 1,
+      tier3: 0,
+      unscored: 0,
+    });
+    expect(ws.cap_age_buckets.d31to60).toBe(1);
+    expect(
+      ws.cap_age_buckets.d0to30 +
+        ws.cap_age_buckets.d61to90 +
+        ws.cap_age_buckets.d90plus,
+    ).toBe(0);
   });
 });
