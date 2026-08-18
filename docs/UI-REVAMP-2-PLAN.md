@@ -125,21 +125,25 @@ measure how well the program runs (efficiency).
 | Review coverage — % Tier-1 vendors ever assessed                           | Vendor × Assessment     | today                                     |
 | Cross-workspace share reuse (duplicate assessments avoided)                | `SharedDocument` reads  | today                                     |
 
-### Additive fields (six, all nullable)
+### Additive fields — three new, not six (`DECISIONS.md` 029)
+
+Reading the models before writing this plan's original draft would have shown three of the
+six were already there: `Assessment.submitted_at`/`reviewed_at` and
+`Risk.cap_tasks[].closed_at` already exist and are already written (Phases 7/8/9). Only
+three fields were actually new:
 
 ```
-Assessment.due_date            Date|null   set on assignment
-Assessment.submitted_at        Date|null   set in submitAssessment()
-Assessment.review_completed_at Date|null   set in completeReview()
-Assessment.next_review_due     Date|null   derived from tier cadence on review completion
-Risk.closed_at                 Date|null   set when status → closed
-Risk.cap_tasks[].completed_at  Date|null   set when task status → closed
+Assessment.due_date         Date|null   set at assignment, from Workspace.settings
+Assessment.next_review_due  Date|null   set in completeReview(), from tier cadence
+Risk.closed_at              Date|null   set in updateRisk() when status → closed
 ```
 
-Backfill: `scripts/backfill-kpi-timestamps.ts`, dry-run by default (same pattern as
-`scripts/sweep-orphaned-evidence.ts`), sourcing from `AuditEvent.action`/`at`. Where an
-event is missing, the field stays `null` and the KPI **excludes that record** rather than
-guessing — matches the project's existing fail-loud scoring rule (`DATA-MODEL.md` §4).
+No backfill script was needed in the end — every field is forward-only (set by its writer
+going forward) and null-excluded by every analytics aggregation that reads it, so there is
+no "missing historical value" gap to fill from `AuditEvent`, unlike the original plan
+assumed. If a real historical gap is ever found, a backfill script is still the right tool
+(dry-run default, same pattern as `scripts/sweep-orphaned-evidence.ts`) — just not required
+by Phase B as built.
 
 Reassessment cadence defaults: Tier 1 = 12 months, Tier 2 = 18, Tier 3 = 24, stored on
 `Workspace.settings` so the risk team can change it without a code change.
@@ -161,19 +165,22 @@ Each phase ends with `npm run verify` green and its own commit.
 - `docs/DESIGN-SYSTEM.md` §2/§3 amended; `docs/DECISIONS.md` 028 recorded.
 - No feature code touched. `npm run verify` green.
 
-### Phase B — KPI/KRI data layer (no UI)
+### Phase B — KPI/KRI data layer (no UI) ✅ (this session)
 
-- Six nullable fields on `lib/db/models/{assessment,risk}.ts`, written at their existing
-  single writers.
-- New `lib/services/analytics.ts` — `TenantContext`-scoped aggregations mirroring
-  `getDashboardSummary()`'s `Promise.all` pattern; roll-up variant reuses
-  `executive-rollup.ts`'s per-membership authorization loop (`DECISIONS.md` 024 — do not
-  collapse to a single top-level check).
-- Cadence settings on `Workspace.settings`.
-- `scripts/backfill-kpi-timestamps.ts` (dry-run default) + demo-volume seed data (today's
-  fixtures are too sparse for any new chart to render meaningfully).
-- Tests for `analytics.ts` against real MongoDB — also closes `dashboard.ts`'s existing
-  test gap (currently the only untested service besides `vendor-spoc.ts`).
+- Three new nullable fields, not six — see `DECISIONS.md` 029 (three of the plan's original
+  six already existed under different names). Written at `assignAssessment()`/
+  `completeReview()`/`updateRisk()`.
+- New `lib/services/analytics.ts` — `getWorkspaceAnalytics(ctx)` (single-workspace, mirrors
+  `getDashboardSummary()`'s `Promise.all` pattern) and `getRollupAnalyticsSummary(userId)`
+  (reuses `executive-rollup.ts`'s per-membership authorization loop, `DECISIONS.md` 024 —
+  not collapsed to a single top-level check).
+- `reassessment_cadence_months`/`assessment_response_sla_days` added to
+  `Workspace.settings`, both with schema defaults — no migration needed.
+- No backfill script needed in the end (see the Additive-fields note above).
+- Demo-volume seed data deferred to Phase C, once charts actually need judging.
+- 9 integration tests in `lib/services/__tests__/analytics.test.ts` against real MongoDB,
+  plus new assertions in `assessment-assignment.test.ts`/`assessment-review.test.ts` for
+  the three new writers. 201/201 tests green, `npm run verify` clean.
 
 ### Phase C — Dashboard rebuild
 

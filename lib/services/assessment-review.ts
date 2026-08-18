@@ -502,7 +502,13 @@ export class AssessmentReviewService {
       updateFields.enterprise_risk_category = input.enterprise_risk_category;
     if (input.impact_level !== undefined)
       updateFields.impact_level = input.impact_level;
-    if (input.status !== undefined) updateFields.status = input.status;
+    if (input.status !== undefined) {
+      updateFields.status = input.status;
+      // Additive, UI Revamp Round 2 (DECISIONS.md 029) — mirrors the existing
+      // cap_tasks[].closed_at stamp pattern (Phase 9). Cleared, not left stale, if a risk
+      // is reopened after being closed.
+      updateFields.closed_at = input.status === "closed" ? new Date() : null;
+    }
 
     await this.riskRepo.updateOne({ _id: risk._id }, { $set: updateFields });
 
@@ -810,9 +816,41 @@ export class AssessmentReviewService {
       throw new NotFoundError(`Assessment not found: ${assessmentId}`);
     }
 
+    // Additive, UI Revamp Round 2 (DECISIONS.md 029) — next_review_due drives the
+    // "reassessment overdue" KRI. Derived from the vendor's current tier and the
+    // workspace's configured cadence at the moment review completes; an unscored vendor
+    // (tier null) gets no next_review_due rather than a fabricated one — the "unscored
+    // vendor" KRI already covers that gap.
+    const vendor = await this.vendorRepo.findById(assessment.vendor_id).lean();
+    const workspace = await this.workspaceRepo
+      .findById(this.ctx.workspaceId)
+      .lean();
+    const cadenceByTier: Record<number, number | undefined> = {
+      1: workspace?.settings?.reassessment_cadence_months?.tier1,
+      2: workspace?.settings?.reassessment_cadence_months?.tier2,
+      3: workspace?.settings?.reassessment_cadence_months?.tier3,
+    };
+    const cadenceMonths = vendor?.inherent_risk_tier
+      ? cadenceByTier[vendor.inherent_risk_tier]
+      : undefined;
+    const reviewedAt = new Date();
+    const nextReviewDue = cadenceMonths
+      ? new Date(
+          reviewedAt.getFullYear(),
+          reviewedAt.getMonth() + cadenceMonths,
+          reviewedAt.getDate(),
+        )
+      : null;
+
     await this.assessmentRepo.updateOne(
       { _id: assessment._id },
-      { $set: { status: "completed", reviewed_at: new Date() } },
+      {
+        $set: {
+          status: "completed",
+          reviewed_at: reviewedAt,
+          next_review_due: nextReviewDue,
+        },
+      },
     );
 
     await recordAuditEvent({

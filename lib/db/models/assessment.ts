@@ -52,6 +52,14 @@ const assessmentSchema = new Schema(
     assigned_at: { type: Date, default: null },
     submitted_at: { type: Date, default: null },
     reviewed_at: { type: Date, default: null },
+    // Additive, UI Revamp Round 2 (DECISIONS.md 028/029) — analytics-only fields, no
+    // existing writer or reader depended on their absence. due_date is set at assignment
+    // from Workspace.settings.assessment_response_sla_days; next_review_due is derived from
+    // the vendor's tier cadence and stamped in completeReview(). Both null on assessments
+    // created before this phase and on any assessment never reaching that step — analytics
+    // reading these fields must treat null as "unknown", never default it to another date.
+    due_date: { type: Date, default: null },
+    next_review_due: { type: Date, default: null },
   },
   { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } as const },
 );

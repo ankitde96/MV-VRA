@@ -125,6 +125,16 @@ describe("assignAssessment (integration)", () => {
     expect(assessment.template_version).toBe(1);
     expect(assessment.template_snapshot).toEqual(schema);
 
+    // UI Revamp Round 2 (DECISIONS.md 029) — due_date defaults from
+    // Workspace.settings.assessment_response_sla_days (21 days when no Workspace document
+    // exists, as here) so the "on-time completion" / "portal stall" KRIs have a baseline
+    // from day one, not only once a real Workspace document with custom settings exists.
+    expect(assessment.due_date).not.toBeNull();
+    const expectedDueDate = new Date(
+      assessment.assigned_at!.getTime() + 21 * 24 * 60 * 60 * 1000,
+    );
+    expect(assessment.due_date!.getTime()).toBe(expectedDueDate.getTime());
+
     const storedEngagement = await Engagement.findById(engagement._id);
     expect(storedEngagement?.status).toBe("in_assessment");
   });

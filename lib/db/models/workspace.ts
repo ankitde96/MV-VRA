@@ -39,6 +39,21 @@ const workspaceSchema = new Schema(
         tier2_min: { type: Number, required: true },
       },
       enterprise_risk_categories: { type: [String], default: [] },
+      // Additive, UI Revamp Round 2 (DECISIONS.md 029) — analytics config, not a scoring
+      // input. reassessment_cadence_months drives the "reassessment overdue" KRI;
+      // assessment_response_sla_days drives Assessment.due_date at assignment and the
+      // "on-time completion" / "portal stall rate" KPIs. Defaults match DECISIONS.md 029's
+      // recorded assumption (A3): Tier 1 annual, Tier 2 18mo, Tier 3 biennial, 21-day SLA.
+      reassessment_cadence_months: {
+        tier1: { type: Number, required: true, default: 12 },
+        tier2: { type: Number, required: true, default: 18 },
+        tier3: { type: Number, required: true, default: 24 },
+      },
+      assessment_response_sla_days: {
+        type: Number,
+        required: true,
+        default: 21,
+      },
     },
     status: { type: String, enum: ["active", "suspended"], default: "active" },
   },

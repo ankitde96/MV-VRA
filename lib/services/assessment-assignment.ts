@@ -4,6 +4,7 @@ import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { AssessmentRepository } from "@/lib/repositories/assessment-repository";
 import { EngagementRepository } from "@/lib/repositories/engagement-repository";
 import { TemplateRepository } from "@/lib/repositories/template-repository";
+import { WorkspaceRepository } from "@/lib/repositories/workspace-repository";
 import { recordAuditEvent } from "@/lib/audit/record-event";
 import type { TenantContext } from "@/lib/tenant/context";
 
@@ -25,6 +26,7 @@ export async function assignAssessment(
   const engagementRepo = new EngagementRepository(ctx);
   const templateRepo = new TemplateRepository(ctx);
   const assessmentRepo = new AssessmentRepository(ctx);
+  const workspaceRepo = new WorkspaceRepository();
 
   const engagement = await engagementRepo.findById(input.engagementId);
   if (!engagement) {
@@ -46,6 +48,13 @@ export async function assignAssessment(
     );
   }
 
+  const workspace = await workspaceRepo.findById(ctx.workspaceId);
+  const slaDays = workspace?.settings?.assessment_response_sla_days ?? 21;
+  const assignedAt = new Date();
+  const dueDate = new Date(
+    assignedAt.getTime() + slaDays * 24 * 60 * 60 * 1000,
+  );
+
   const session = await mongoose.startSession();
   try {
     const assessment = await session.withTransaction(async () => {
@@ -57,7 +66,8 @@ export async function assignAssessment(
           template_version: template.version,
           template_snapshot: structuredClone(template.questions_schema),
           status: "sent",
-          assigned_at: new Date(),
+          assigned_at: assignedAt,
+          due_date: dueDate,
         },
         { session },
       );

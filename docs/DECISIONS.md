@@ -23,6 +23,88 @@
 
 ---
 
+## [2026-08-18] 029 — UI Revamp Round 2, Phase B: three additive timestamp fields (not six — three already existed), cadence/SLA config on Workspace, null-excluded analytics
+
+**Decision:** `docs/UI-REVAMP-2-PLAN.md`'s KPI/KRI framework named six additive fields.
+Reading the actual models first (`lib/db/models/assessment.ts`, `lib/db/models/risk.ts`)
+found three already exist and are already written: `Assessment.submitted_at` (written in
+`portal-assessment.ts`'s `submitAssessment()`), `Assessment.reviewed_at` (written in
+`completeReview()` — functionally identical to the plan's proposed `review_completed_at`,
+just already under a different name), and `Risk.cap_tasks[].closed_at` (written in
+`updateCapTask()`, Phase 9 — identical to the plan's proposed `cap_tasks[].completed_at`).
+Only **three** fields were actually new:
+
+1. `Assessment.due_date` — set at assignment (`assignAssessment()`) from
+   `Workspace.settings.assessment_response_sla_days` (new, default 21 days).
+2. `Assessment.next_review_due` — set in `completeReview()`, derived from the vendor's
+   `inherent_risk_tier` and `Workspace.settings.reassessment_cadence_months` (new,
+   `{tier1: 12, tier2: 18, tier3: 24}` defaults). Left `null` for an unscored vendor
+   (tier `null`) rather than fabricating a due date — the "unscored vendor" KRI already
+   covers that gap; this field must not paper over it.
+3. `Risk.closed_at` — the risk itself never had a closed timestamp before this (only its
+   embedded `cap_tasks` did). Stamped in `updateRisk()` when `status` transitions to
+   `"closed"`, cleared to `null` if reopened — mirrors the existing `cap_tasks[].closed_at`
+   pattern exactly rather than inventing a different convention.
+
+All three are nullable, default `null`, no migration required — existing documents simply
+read `null` until the next write reaches the relevant step, or a future backfill script
+runs. `lib/services/analytics.ts` (new) computes the KRI/KPI framework's aggregations;
+every field it derives from one of these three (or the existing three) treats a `null`
+input as "exclude this record," never "treat as zero" or "default to another date" — same
+rule as `DATA-MODEL.md` §4's fail-loud scoring contract, extended to analytics rather than
+scoring.
+
+**Context:** Discovered while implementing Phase B of `docs/UI-REVAMP-2-PLAN.md` — the
+plan's "six additive fields" section was written from the KPI/KRI framework's _data needs_,
+before anyone had actually opened the models to check what already existed. `codegraph`/
+`Read` on both models surfaced the overlap immediately.
+
+**Rationale:** Adding `review_completed_at`/`completed_at` alongside the existing
+`reviewed_at`/`closed_at` would have created two fields meaning the same thing on the same
+document — a duplication bug waiting to happen the first time someone reads the wrong one.
+Checking first cost one `Read` call and avoided that. The cadence/SLA defaults
+(`reassessment_cadence_months`, `assessment_response_sla_days`) live on
+`Workspace.settings` — the same place `risk_weights`/`tier_thresholds` already live — so a
+risk team can retune them per workspace without a code change, consistent with how every
+other tunable scoring input in this codebase is already modeled.
+
+**Alternatives rejected:**
+
+- _Rename the existing `reviewed_at`/`cap_tasks[].closed_at` to match the plan's original
+  field names_ — rejected; a rename touches every existing reader (five-plus call sites)
+  for zero functional gain, purely to match a name chosen before the fields were known to
+  exist.
+- _Derive `next_review_due` from `Vendor.inherent_risk_tier` at read time instead of
+  stamping it_ — rejected; a vendor's tier can change after an assessment completes (a
+  re-tiering), and stamping at completion time freezes "what cadence applied to _this_
+  review," matching how `template_snapshot` freezes what schema applied to _that_
+  assessment (`DECISIONS.md` 007) rather than re-deriving from current state.
+- _Default `assessment_response_sla_days`/cadence at the analytics-service call site
+  instead of on `Workspace.settings`_ — rejected; putting it on the model means it's
+  visible and editable the same way every other workspace-level tunable already is, not a
+  magic number buried in a service file.
+
+**Consequences:** Any future reader of `Assessment.reviewed_at` or
+`Risk.cap_tasks[].closed_at` should know they now do double duty — Phase 9/10's original
+purpose (audit trail) and Round 2's KPI purpose (cycle time, MTTR) — without having
+changed shape or meaning. `lib/services/analytics.ts`'s MTTR calculation needed one
+additional fix during implementation: `cap_tasks` subdocuments have no `created_at`
+(`capTaskSchema` isn't timestamped) — resolved by decoding the creation time already
+embedded in the auto-generated `task_id` ObjectId (`{ $toDate: "$cap_tasks.task_id" }` in
+the aggregation) rather than adding a fourth schema field for something already derivable.
+Two framework items from the plan are deliberately not implemented as first-class metrics
+in Phase B: "evidence gap rate" is shipped as an approximation
+(`evidence_gap_rate_approx`, answered-with-no-evidence rather than "questions that actually
+require evidence" — no schema flag exists to join against) and is named accordingly rather
+than presented as more precise than it is; "cross-workspace share reuse" is left for a
+later pass rather than shipped as a shallow proxy metric.
+
+**Decided by:** Claude Sonnet 5 (`claude-sonnet-5`), implementing Phase B of
+`docs/UI-REVAMP-2-PLAN.md` per the project owner's direction and the brainstorming-session
+decisions recorded in `DECISIONS.md` 028.
+
+---
+
 ## [2026-08-18] 028 — UI Revamp Round 2: Glassmorphism un-rejected app-wide; risk-semantic surfaces stay flat; blanket dependency pre-approval for this round
 
 **Decision:** Two things settled for UI Revamp Round 2 (`docs/UI-REVAMP-2-PLAN.md`):

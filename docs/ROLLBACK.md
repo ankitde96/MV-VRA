@@ -35,23 +35,35 @@ Overwrite this block at the start of each risky change. One at a time.
 
 ```
 UI Revamp Round 2 — glassmorphism visual layer + KPI/KRI analytics (2026-08-18, in
-progress). See docs/UI-REVAMP-2-PLAN.md and DECISIONS.md 028.
+progress). See docs/UI-REVAMP-2-PLAN.md and DECISIONS.md 028/029.
 
 Safe baseline: commit 0ea5688 (origin/main) — first real rollback point this project has
 ever had. `git diff 0ea5688` / `git restore --source=0ea5688 -- <file>` both work now.
 
-Phase A (design tokens, in progress) — app/globals.css, app/layout.tsx (adds Lexend
---font-display). No schema, auth, or repository/service-layer changes. Low risk: additive
-CSS custom properties + utility classes, nothing removed from the existing token set.
+Phase A (design tokens) — DONE, committed 45c392e. app/globals.css, app/layout.tsx.
+No feature code touched.
 
-Phase B (next, SCHEMA-TOUCHING) will add six nullable Date fields to Assessment/Risk
-models — its own Active-plan block goes here before that phase starts, per CONSTRAINTS.md
-#2's spirit (not auth, but still "changes a MongoDB schema").
+Phase B (KPI/KRI data layer, in progress) — SCHEMA-TOUCHING. Three additive nullable Date
+fields (not six — three already existed under different names, see DECISIONS.md 029):
+Assessment.due_date/next_review_due, Risk.closed_at. Two new Workspace.settings config
+blocks (reassessment_cadence_months, assessment_response_sla_days), both with schema
+defaults so no existing Workspace document needs a migration. New lib/services/analytics.ts.
+Files touched: lib/db/models/{assessment,risk,workspace}.ts, lib/services/
+{assessment-assignment,assessment-review}.ts (new writers only, no existing write path
+changed), lib/services/analytics.ts (new), plus new/extended tests. No auth, no tenant
+scoping, no repository-layer change. What to re-check if reverting: every new field is
+nullable with no default other than null — reverting the model files alone is safe even if
+documents were already written with these fields set, since older code simply ignores
+fields it doesn't select.
+
+Phase C (dashboard rebuild) next — no schema change expected, its own Active-plan note if
+that changes.
 
 Dependencies: CONSTRAINTS.md #1's per-package ask is pre-approved for this round only
 (DECISIONS.md 028) — each package actually added still gets its own DECISIONS.md entry.
+None added yet (Phases A/B were CSS + Mongoose schema only).
 
-Re-check after any revert attempt: npm run verify all green, 190 tests still pass, risk
+Re-check after any revert attempt: npm run verify all green, 201 tests still pass, risk
 badges/table cells render identically to pre-Round-2 (flat, no glass — the one thing that
 must not visually change).
 ```

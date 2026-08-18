@@ -221,7 +221,31 @@ describe("AssessmentReviewService (integration)", () => {
     expect(storedRisk?.status).toBe("accepted");
   });
 
-  it("completeReview() stamps the assessment completed with a reviewed_at timestamp", async () => {
+  it("updateRisk() stamps closed_at when status moves to closed, and clears it if reopened (UI Revamp Round 2, DECISIONS.md 029)", async () => {
+    await dbConnect();
+    const assessment = await seedFixtures();
+    const service = new AssessmentReviewService({ workspaceId });
+
+    const raised = await service.raiseRisk(assessment._id.toString(), {
+      control_id: "HOST-05",
+      title: "Unpatched CVE",
+      severity: "high",
+      enterprise_risk_category: "Information Security",
+      impact_level: "high",
+    });
+
+    await service.updateRisk(raised.risk_id, { status: "closed" });
+    const closedRisk = await Risk.findById(raised.risk_id);
+    expect(closedRisk?.status).toBe("closed");
+    expect(closedRisk?.closed_at).toBeInstanceOf(Date);
+
+    await service.updateRisk(raised.risk_id, { status: "open" });
+    const reopenedRisk = await Risk.findById(raised.risk_id);
+    expect(reopenedRisk?.status).toBe("open");
+    expect(reopenedRisk?.closed_at).toBeNull();
+  });
+
+  it("completeReview() stamps the assessment completed with a reviewed_at timestamp and derives next_review_due from the vendor's tier cadence", async () => {
     await dbConnect();
     const assessment = await seedFixtures();
     const service = new AssessmentReviewService({ workspaceId });
@@ -232,6 +256,34 @@ describe("AssessmentReviewService (integration)", () => {
     const storedAssessment = await Assessment.findById(assessment._id);
     expect(storedAssessment?.status).toBe("completed");
     expect(storedAssessment?.reviewed_at).toBeInstanceOf(Date);
+
+    // UI Revamp Round 2 (DECISIONS.md 029) — fixture vendor is tier 2, Workspace default
+    // cadence for tier2 is 18 months (lib/db/models/workspace.ts default).
+    expect(storedAssessment?.next_review_due).toBeInstanceOf(Date);
+    const reviewedAt = storedAssessment!.reviewed_at!;
+    const expected = new Date(
+      reviewedAt.getFullYear(),
+      reviewedAt.getMonth() + 18,
+      reviewedAt.getDate(),
+    );
+    expect(storedAssessment?.next_review_due?.getTime()).toBe(
+      expected.getTime(),
+    );
+  });
+
+  it("completeReview() leaves next_review_due null when the vendor is unscored (no tier)", async () => {
+    await dbConnect();
+    const assessment = await seedFixtures();
+    await Vendor.updateOne(
+      { _id: vendorId },
+      { $set: { inherent_risk_tier: null } },
+    );
+    const service = new AssessmentReviewService({ workspaceId });
+
+    await service.completeReview(assessment._id.toString());
+
+    const storedAssessment = await Assessment.findById(assessment._id);
+    expect(storedAssessment?.next_review_due).toBeNull();
   });
 
   it("raiseRisk() rejects a request missing required fields before writing anything", async () => {

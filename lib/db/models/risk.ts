@@ -72,6 +72,12 @@ const riskSchema = new Schema(
       enum: ["open", "mitigating", "accepted", "closed"],
       default: "open",
     },
+    // Additive, UI Revamp Round 2 (DECISIONS.md 028/029) — the risk itself never had a
+    // closed timestamp; only cap_tasks[].closed_at existed (Phase 9). Stamped in
+    // updateRisk() when status transitions to "closed", mirroring that existing pattern.
+    // null on every risk closed before this phase, and analytics must treat that as
+    // "unknown closure time", never backfill it from updated_at.
+    closed_at: { type: Date, default: null },
   },
   { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } as const },
 );
