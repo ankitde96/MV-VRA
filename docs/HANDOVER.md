@@ -8,6 +8,17 @@
 
 ## Current state (as of 2026-08-18)
 
+- **Recharts hydration mismatch fixed at root cause** — `DECISIONS.md` 034 corrects 030's
+  "documented, not fixed" call after the user hit it directly in the browser console. Every
+  chart now threads a `React.useId()`-derived `id` into its recharts container.
+- **Real client questionnaire seeded** — `npm run db:seed-questionnaire`
+  (`scripts/seed-questionnaire-template.ts`) imports the client-provided WFPL Vendor Risk
+  Assessment Questionnaire v2.0 (`docs/questionnaires/wfpl-vendor-risk-assessment-v2.0.csv`)
+  as a published, immediately-assignable template — 19 sections, 130 questions, all
+  `single_select` Yes/No per explicit direction (a real semantic loss for the handful of
+  genuinely open-ended source questions, done anyway as instructed). Idempotent; now part of
+  README's Getting Started sequence. `DECISIONS.md` 035.
+
 **Project name:** MV-VRA (MoneyView Vendor Risk Assessment).
 **Phase:** Phases 0–11 done (the original MVP). Two post-MVP UI passes now complete:
 **UI Revamp Round 1** (8 phases, Swiss-flat design system — `docs/features/ui-revamp.md`)

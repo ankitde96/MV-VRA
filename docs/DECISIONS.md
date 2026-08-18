@@ -23,6 +23,81 @@
 
 ---
 
+## [2026-08-18] 035 — Real client questionnaire (WFPL Vendor Risk Assessment v2.0) seeded as a published template; all 130 questions forced to single_select Yes/No per explicit direction; control_ids generated fresh, not taken from the source S.No column
+
+**Decision:** The client-provided CSV (`WFPL- Vendor Risk Assessment Questionnaire v2.0.csv`,
+copied verbatim into the repo as `docs/questionnaires/wfpl-vendor-risk-assessment-v2.0.csv`)
+is now the source of a new script, `scripts/seed-questionnaire-template.ts`
+(`npm run db:seed-questionnaire`), that parses it and creates a **published**
+`QuestionnaireTemplate` — 19 sections, 130 questions — ready to assign to any engagement
+with no manual template-builder work. Three implementation choices, each with a real
+tradeoff:
+
+1. **Every question is `single_select` with `options: ["Yes", "No"]`**, per explicit
+   direction. A handful of questions in the source are genuinely open-ended (e.g. "Provide
+   the vendor's name, registered address, and contact details," "What is the organizational
+   structure of your company?") — a Yes/No answer to those isn't meaningful. Implemented as
+   instructed anyway; this is a content decision, not a technical one, and not mine to
+   silently override.
+2. **`control_id`s are generated fresh (`WFPL-001`…`WFPL-130`), not taken from the source
+   CSV's `S.No` column.** That column is broken data, not a real identifier — it runs
+   `-2, -1, 0, 1, 6, 7, 8, 9...` (negative values, a gap, no relation to row position).
+   Trusting it would have produced duplicate/nonsensical `control_id`s that
+   `validateQuestionsSchemaStructure()` would likely reject outright (duplicates) or that
+   would silently misorder controls if it didn't.
+3. **The "Evidence Required" column's guidance text is folded into the question's own
+   `text` field** (`"<question>\n\nEvidence: <guidance>"`), not discarded. `Question`
+   (`lib/questionnaire/schema.ts`) has no dedicated evidence-guidance field for a non-file
+   question type — the alternative was losing that guidance entirely, which is worse than a
+   slightly run-on question label.
+
+**Context:** Direct request: "include this questionnaire in the template... whenever we are
+setting a new dev env this questionnaire will be pulled into the application/db. All the
+question types are single_select (Yes/No)."
+
+**Rationale:** A dedicated script (not a one-off manual template-builder session) is the
+only way "pulled into the application/db on every fresh dev env" is actually true — a
+manually-built template only exists on whichever database it was clicked into. Publishing
+immediately (`createTemplate()` then `publishTemplate()`, both through the existing service
+layer — not a raw model write) rather than leaving it as a draft means it's assignable the
+moment the seed finishes, with the same validation (`validateQuestionsSchemaStructure()`)
+and audit trail (`template.created`/`template.published` events) every other template gets.
+No new dependency was added for CSV parsing (`CONSTRAINTS.md` #1 default is back in force
+now that UI Revamp Round 2's blanket pre-approval, `DECISIONS.md` 028, has ended) — the
+source file's embedded newlines and commas inside quoted cells need real RFC4180 handling,
+so a ~50-line hand-rolled parser was written inline rather than reaching for a package for
+a one-shot bootstrap script.
+
+**Alternatives rejected:**
+
+- _Preserve the source's mixed question types (text/textarea for the open-ended ones,
+  single_select for the rest)_ — rejected; explicit instruction was all-Yes/No. Flagged in
+  the script's own docstring as a real semantic loss for the handful of questions where it
+  doesn't fit, rather than silently deviating from what was asked.
+- _Use the CSV's `S.No` column as `control_id`_ — rejected; the column is unreliable
+  (negative numbers, non-sequential, gaps) and would either collide (duplicate `control_id`
+  validation failure) or produce meaningless IDs with no relation to the question's actual
+  position.
+- _Drop the "Evidence Required" guidance entirely, keep only the question text_ — rejected;
+  that's real content the client provided specifically to guide what to submit, and there
+  was a place to put it (the question's own `text` field) that costs nothing to use.
+- _Chain this into `scripts/seed.ts` so one command does everything_ — rejected; kept as
+  its own script/npm command matching the existing convention (`seed.ts` vs
+  `seed-demo-data.ts` are already separate concerns), documented as an explicit step in
+  README's Getting Started sequence instead of a silent side effect of `db:seed`.
+
+**Consequences:** Re-running `npm run db:seed-questionnaire` after the first run is a no-op
+(logged, not silent) — it does **not** update an already-published template in place
+(`CONSTRAINTS.md` #11, publishing freezes a version forever). If the source questionnaire
+ever changes, the fix is the app's own "create new version" flow (or bumping `TEMPLATE_KEY`
+by hand for a clean break), not a re-run of this script. `docs/questionnaires/` is now a
+real input directory, alongside the two source specs already governed by `CONSTRAINTS.md`
+#7 — treat the CSV in it the same way: read-only, not a working file to hand-edit.
+
+**Decided by:** Claude Sonnet 5 (`claude-sonnet-5`), at the project owner's direction.
+
+---
+
 ## [2026-08-18] 034 — Fixed the recharts hydration mismatch flagged in 030 at its root cause, not just documented it
 
 **Decision:** Every chart component now passes a `React.useId()`-derived `id` prop into its
