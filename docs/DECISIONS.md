@@ -23,6 +23,67 @@
 
 ---
 
+## [2026-08-18] 034 — Fixed the recharts hydration mismatch flagged in 030 at its root cause, not just documented it
+
+**Decision:** Every chart component now passes a `React.useId()`-derived `id` prop into its
+recharts container (`<AreaChart id={chartId}>` / `<BarChart id={chartId}>`), across all 7
+chart files: `risk-trend-chart.tsx`, `tier-distribution-chart.tsx`, `severity-bar-chart.tsx`,
+`risk-aging-chart.tsx`, `residual-exposure-chart.tsx`, `tier-comparison-chart.tsx`,
+`cap-age-bucket-chart.tsx`.
+
+**Context:** Round 2 Phase D/C (`DECISIONS.md` 030/031) noted a recharts SSR hydration
+warning as "pre-existing, cosmetic, client-nav-only" and left it undiagnosed beyond that.
+The user hit it directly in real usage (React console error, not just devtools noise) after
+Round 2 shipped — confirming it wasn't as inert as 030 assumed. Read `recharts`' own source
+(`node_modules/recharts/lib/chart/generateCategoricalChart.js`) rather than continuing to
+guess: `this.clipPathId = props.id ?? uniqueId('recharts')` — every chart instance without
+an explicit `id` prop gets its SVG `clipPathId` from a **module-level auto-increment
+counter**, not from React's own SSR-safe id mechanism. That counter's state depends on how
+many chart instances have mounted in this JS module's lifetime — which differs between the
+server's render pass and the client's, once more than one chart exists on a page or a user
+navigates between chart-heavy pages client-side. `ChartContainer` (`components/ui/chart.tsx`)
+already computes an SSR-safe `chartId` via `React.useId()` for its own wrapper `<div>`, but
+never threaded it down to the actual recharts component — the exact prop recharts needs to
+skip its own unstable counter.
+
+**Rationale:** `React.useId()` is the React-native, SSR-guaranteed-identical id generator —
+it's deterministic per component-tree position, not per render-count, so it can't diverge
+between server and client the way recharts' internal counter does. Passing it straight into
+`id` on the outer `<AreaChart>`/`<BarChart>` is the documented recharts extension point for
+exactly this problem, requires no change to the shared `ui/chart.tsx` (shadcn-generated,
+left alone on purpose), and is a one-line addition per chart file. Verified by reproducing
+the original trigger condition directly — five rapid sidebar-click (real client-side)
+navigations between `/dashboard` and `/rollup`, both chart-heavy pages — with a fresh
+console-message listener attached before each cycle; zero hydration errors after the fix,
+where the same pattern produced the reported error before.
+
+**Alternatives rejected:**
+
+- _Leave it as documented-but-unfixed, per 030's original call_ — correct then (it looked
+  cosmetic and self-healing in that session's testing), wrong now that it's a real user-
+  facing console error. Once actually diagnosed, the fix was one line per file — cheaper
+  than the ongoing cost of a recurring, unexplained error every future session has to
+  re-triage.
+- _Suppress/catch the hydration warning instead of fixing the id source_ — rejected; that
+  hides the symptom and leaves the same root cause ready to surface as a real visual glitch
+  (React discards and re-renders the mismatched subtree, which is not always seamless) the
+  moment a chart's data or layout is timing-sensitive in a way this session's fixtures
+  didn't happen to exercise.
+
+**Consequences:** Any new chart component added to this app must follow the same pattern —
+`const chartId = useId()` and pass it as `id` to the outer recharts container — or the same
+class of hydration mismatch returns for that one chart. Worth adding a one-line reminder to
+`DESIGN-SYSTEM.md` §5's chart guidance if a Phase G / future chart work ever happens.
+
+**Decided by:** Claude Sonnet 5 (`claude-sonnet-5`), fixing a bug the user reported directly
+from browser console output.
+
+**Supersedes:** Corrects 030's characterization of this issue as adequately handled by
+documentation alone — the diagnosis (client-nav-only, self-heals) was accurate; the
+decision to leave it unfixed is what this entry reverses.
+
+---
+
 ## [2026-08-18] 033 — UI Revamp Round 2, Phase F: restrained portal polish, DataTable migration for admin-users/sharing, toast conversion completed — with two deliberate exceptions kept
 
 **Decision:** Closed Round 1's two named debts (`docs/features/ui-revamp.md` §11) plus the

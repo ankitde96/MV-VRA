@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -37,6 +37,7 @@ export function TierDistributionChart({
   data: { tier1: number; tier2: number; tier3: number; unscored: number };
 }) {
   const [showTable, setShowTable] = useState(false);
+  const chartId = useId();
   const chartData = [{ name: "Vendors", ...data }];
 
   return (
@@ -89,7 +90,12 @@ export function TierDistributionChart({
           </Table>
         ) : (
           <ChartContainer config={chartConfig} className="h-48 w-full">
-            <BarChart data={chartData} layout="vertical" margin={{ left: 0 }}>
+            <BarChart
+              id={chartId}
+              data={chartData}
+              layout="vertical"
+              margin={{ left: 0 }}
+            >
               <CartesianGrid horizontal={false} />
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="name" hide />

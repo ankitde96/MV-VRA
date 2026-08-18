@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -42,6 +42,12 @@ export function RiskTrendChart({
   data: Array<{ week: string; opened: number; closed: number }>;
 }) {
   const [showTable, setShowTable] = useState(false);
+  // recharts derives its internal SVG clipPathId from a module-level auto-increment
+  // counter unless given a stable `id` — that counter diverges between the SSR pass and
+  // the client hydration pass once multiple charts exist on one page, producing a real
+  // (if cosmetic) hydration mismatch. React.useId() is exactly the SSR-safe id source this
+  // needs, so threading it into `id` below removes the mismatch at its root.
+  const chartId = useId();
 
   if (data.length === 0) {
     return (
@@ -105,7 +111,11 @@ export function RiskTrendChart({
           </Table>
         ) : (
           <ChartContainer config={chartConfig} className="h-56 w-full">
-            <AreaChart data={data} margin={{ left: 12, right: 12 }}>
+            <AreaChart
+              id={chartId}
+              data={data}
+              margin={{ left: 12, right: 12 }}
+            >
               <CartesianGrid vertical={false} />
               <XAxis
                 dataKey="week"

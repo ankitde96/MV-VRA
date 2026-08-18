@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -52,6 +52,7 @@ const chartConfig = {
  */
 export function RiskAgingChart({ data }: { data: RiskAgingBucket[] }) {
   const [showTable, setShowTable] = useState(false);
+  const chartId = useId();
   const hasData = data.some((b) => b.critical + b.high + b.medium + b.low > 0);
 
   if (!hasData) {
@@ -124,7 +125,7 @@ export function RiskAgingChart({ data }: { data: RiskAgingBucket[] }) {
           </Table>
         ) : (
           <ChartContainer config={chartConfig} className="h-56 w-full">
-            <BarChart data={data} margin={{ left: 12, right: 12 }}>
+            <BarChart id={chartId} data={data} margin={{ left: 12, right: 12 }}>
               <CartesianGrid vertical={false} />
               <XAxis
                 dataKey="bucket"

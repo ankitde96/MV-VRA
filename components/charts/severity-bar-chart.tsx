@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
@@ -28,6 +29,7 @@ export function SeverityBarChart({
 }: {
   data: { critical: number; high: number; medium: number; low: number };
 }) {
+  const chartId = useId();
   const rows = [
     { severity: "Critical", count: data.critical },
     { severity: "High", count: data.high },
@@ -37,7 +39,7 @@ export function SeverityBarChart({
 
   return (
     <ChartContainer config={chartConfig} className="h-40 w-full">
-      <BarChart data={rows} layout="vertical" margin={{ left: 0 }}>
+      <BarChart id={chartId} data={rows} layout="vertical" margin={{ left: 0 }}>
         <CartesianGrid horizontal={false} />
         <XAxis type="number" hide />
         <YAxis

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -41,6 +41,7 @@ export function TierComparisonChart({
   workspaces: WorkspaceKriSummary[];
 }) {
   const [showTable, setShowTable] = useState(false);
+  const chartId = useId();
   const rows = [...workspaces]
     .sort((a, b) => b.vendors_by_tier.tier1 - a.vendors_by_tier.tier1)
     .map((w) => ({ name: w.workspace_name, ...w.vendors_by_tier }));
@@ -95,7 +96,12 @@ export function TierComparisonChart({
             className="w-full"
             style={{ height: Math.max(120, rows.length * 56) }}
           >
-            <BarChart data={rows} layout="vertical" margin={{ left: 12 }}>
+            <BarChart
+              id={chartId}
+              data={rows}
+              layout="vertical"
+              margin={{ left: 12 }}
+            >
               <CartesianGrid horizontal={false} />
               <XAxis type="number" hide />
               <YAxis

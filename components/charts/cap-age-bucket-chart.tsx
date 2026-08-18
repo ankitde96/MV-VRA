@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -52,6 +52,7 @@ export function CapAgeBucketChart({
   workspaces: WorkspaceKriSummary[];
 }) {
   const [showTable, setShowTable] = useState(false);
+  const chartId = useId();
   const rows = workspaces.map((w) => ({
     name: w.workspace_name,
     ...w.cap_age_buckets,
@@ -133,7 +134,12 @@ export function CapAgeBucketChart({
             className="w-full"
             style={{ height: Math.max(140, rows.length * 64) }}
           >
-            <BarChart data={rows} layout="vertical" margin={{ left: 12 }}>
+            <BarChart
+              id={chartId}
+              data={rows}
+              layout="vertical"
+              margin={{ left: 12 }}
+            >
               <CartesianGrid horizontal={false} />
               <XAxis type="number" hide />
               <YAxis

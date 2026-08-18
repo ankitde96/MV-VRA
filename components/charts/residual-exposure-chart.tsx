@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -47,6 +47,7 @@ export function ResidualExposureChart({
   data: Array<{ week: string; total_residual: number }>;
 }) {
   const [showTable, setShowTable] = useState(false);
+  const chartId = useId();
 
   if (data.length === 0) {
     return (
@@ -108,7 +109,11 @@ export function ResidualExposureChart({
           </Table>
         ) : (
           <ChartContainer config={chartConfig} className="h-56 w-full">
-            <AreaChart data={data} margin={{ left: 12, right: 12 }}>
+            <AreaChart
+              id={chartId}
+              data={data}
+              margin={{ left: 12, right: 12 }}
+            >
               <CartesianGrid vertical={false} />
               <XAxis
                 dataKey="week"
