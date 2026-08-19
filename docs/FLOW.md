@@ -309,7 +309,10 @@ real vendor/risk counts and omitted the second entirely, and `authorized_workspa
 ## F7 — Per-control review and correction round ✅ BUILT (Stage 5, 2026-08-19)
 
 1. Reviewer marks every visible response compliant or non-compliant; the shared 400 ms
-   autosave persists verdict and note and advances `submitted → under_review`.
+   autosave persists verdict and note and advances `submitted → under_review`. The client
+   keeps this orchestration in `assessment-review-client.tsx`, while reducer-owned state is
+   rendered through `review/ReviewSection` and memoized `review/ReviewQuestionRow` components
+   (`DECISIONS.md` 046); the request and service path is unchanged.
 2. Request changes refuses an empty non-compliant set, then query-guards the source status,
    increments `review_round`, stamps the reviewer, audits, emails recipients, and moves to
    `changes_requested`.

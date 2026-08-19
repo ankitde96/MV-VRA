@@ -34,6 +34,23 @@ For anything smaller, `git diff` and `git restore` are sufficient.
 Overwrite this block at the start of each risky change. One at a time.
 
 ```
+Reviewer experience upgrade — Stage 0: review-page decomposition
+(2026-08-20, DONE). Safe baseline: 453441ebcac2b9d33aedef1872fcc4c26f3ad717
+(local main; clean worktree at stage start).
+
+Refactor-only change: consolidate per-control review state behind a reducer, extract
+memoized review question/section components, and add an initially field-free URL-state
+hook. No schema, auth, tenant-scoping, storage, API-contract, or dependency changes.
+Reversible by restoring the Stage 0 files from the safe baseline. Existing assessment and
+response data is unaffected because this stage does not alter persistence behavior.
+
+Verified: `npm run verify` passed (30 files, 228 tests, production build); the unchanged
+Playwright correction journey passed 2/2 across desktop and mobile Chromium, exercising
+verdict marking, reviewer-note autosave, saved state, resend, and portal correction scope.
+The completion service remains covered by the passing integration suite; a manual browser
+completion click was not run and is recorded in the feature trace.
+
+Prior active plan (closed):
 Assessment workflow revamp — Stage 5: compliance marking and resend loop
 (2026-08-19, DONE). Safe baseline: 61a5569 plus the verified uncommitted Stage 4
 completion diff on main.

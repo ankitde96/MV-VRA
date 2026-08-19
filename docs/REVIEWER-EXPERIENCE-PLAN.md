@@ -1,6 +1,6 @@
 # REVIEWER-EXPERIENCE-PLAN.md — Reviewer Experience & Reporting Upgrade
 
-> **Status: plan only. No code has been written for any stage below.**
+> **Status: Stage 0 complete and verified on 2026-08-20. Stages 1–7 remain plan-only.**
 > Produced through the brainstorming workflow on 2026-08-20. Supersedes nothing; extends
 > the completed work in `docs/ASSESSMENT-WORKFLOW-PLAN.md` (Stages 1–5, all shipped).
 >
@@ -114,6 +114,9 @@ Stated explicitly so they can be corrected rather than discovered:
 ---
 
 ## Stage 0 — Review-page decompose
+
+**Status: ✅ Complete (2026-08-20).** See
+`docs/features/reviewer-experience-stage-0-decomposition.md` and `DECISIONS.md` 046.
 
 **Goal.** Restructure `assessment-review-client.tsx` so later stages are cheap. **Zero
 user-visible change.**

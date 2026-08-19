@@ -23,6 +23,40 @@
 
 ---
 
+## [2026-08-20] 046 — Reviewer row state is isolated before productivity features land
+
+**Decision:** Keep review workflow/network orchestration in
+`AssessmentReviewClient`, but move each control's verdict, note, save timestamp, and error
+into one reducer-owned record. Render controls through a memoized `ReviewQuestionRow` inside
+an extracted `ReviewSection`. Establish a generic URL query-state hook now, with named
+filter/search/collapse fields deferred to Stage 3.
+
+**Context:** The reviewer-experience plan will add filtering, keyboard navigation,
+collapsible sections, evidence tools, and completion summaries to a page already rendering
+roughly 130 controls inline. Extending the 670-line component first would couple those
+features to parallel state maps and make every note edit feed the whole row tree.
+
+**Rationale:** Reducer actions make one control the atomic state boundary, and unchanged
+controls retain object identity so memoized rows can skip rendering. Keeping API calls in the
+parent preserves the proven flush-before-resend/completion behavior. A URL helper with no
+named fields introduces no user-visible state while fixing the persistence mechanism before
+Stage 3 depends on it.
+
+**Alternatives rejected:** Extend the monolith — makes each later feature increase the same
+component's state and render coupling. Move filtering server-side — adds request latency for
+a bounded client-side data set. Store future reviewer state only in component state — loses
+refresh and shareable-link behavior required by the plan.
+
+**Consequences:** Review row props and reducer actions are now the client-side extension
+points. Later stages should add row-local presentation to `components/assessments/review/`
+and named URL fields to `hooks/use-review-url-state.ts`, without moving persistence or tenant
+authorization into components.
+
+**Decided by:** Project owner through `REVIEWER-EXPERIENCE-PLAN.md` R8/R9; implemented by
+Codex (GPT-5).
+
+---
+
 ## [2026-08-19] 045 — Correction rounds reopen only explicitly non-compliant controls
 
 **Decision:** Store reviewer verdict and note on each response. A resend changes the

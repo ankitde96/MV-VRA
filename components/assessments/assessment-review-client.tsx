@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { RaiseRiskDialog } from "@/components/risks/raise-risk-dialog";
 import {
   SeverityBadge,
@@ -15,6 +14,12 @@ import {
 import { StatusBadge } from "@/components/domain/status-badge";
 import type { ReviewerQuestionItem } from "@/lib/services/assessment-review";
 import { useDebouncedAutosave } from "@/hooks/use-debounced-autosave";
+import { ReviewSection } from "@/components/assessments/review/review-section";
+import {
+  createInitialReviewState,
+  reviewStateReducer,
+  type ReviewVerdict,
+} from "@/components/assessments/review/review-state";
 
 interface AssessmentReviewClientProps {
   initialData: {
@@ -65,35 +70,6 @@ interface AssessmentReviewClientProps {
   };
 }
 
-const CONTROL_STATUS_BADGES: Record<
-  ReviewerQuestionItem["control_status"],
-  { label: string; className: string }
-> = {
-  passed: {
-    label: "Passed",
-    className:
-      "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
-  },
-  exception: {
-    label: "Exception",
-    className:
-      "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
-  },
-  failed: {
-    label: "Failed",
-    className: "bg-destructive/15 text-destructive border-destructive/30",
-  },
-  missing: {
-    label: "Missing",
-    className:
-      "bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30",
-  },
-  suppressed: {
-    label: "Suppressed",
-    className: "bg-muted text-muted-foreground border-border",
-  },
-};
-
 export function AssessmentReviewClient({
   initialData,
 }: AssessmentReviewClientProps) {
@@ -114,25 +90,10 @@ export function AssessmentReviewClient({
   const [dialogDescription, setDialogDescription] = useState("");
   const [completing, setCompleting] = useState(false);
   const [resending, setResending] = useState(false);
-  const [savedAtByControl, setSavedAtByControl] = useState<
-    Record<string, Date>
-  >({});
-  const [saveErrors, setSaveErrors] = useState<Record<string, boolean>>({});
-  const [verdicts, setVerdicts] = useState(() =>
-    Object.fromEntries(
-      questions.map((question) => [
-        question.control_id,
-        question.review_status,
-      ]),
-    ),
-  );
-  const [reviewerNotes, setReviewerNotes] = useState(() =>
-    Object.fromEntries(
-      questions.map((question) => [
-        question.control_id,
-        question.reviewer_note,
-      ]),
-    ),
+  const [reviewState, dispatchReviewState] = useReducer(
+    reviewStateReducer,
+    questions,
+    createInitialReviewState,
   );
   const persistVerdict = useCallback(
     async (
@@ -150,13 +111,14 @@ export function AssessmentReviewClient({
           body: JSON.stringify(review),
         },
       );
-      setSaveErrors((current) => ({ ...current, [controlId]: !response.ok }));
       if (response.ok) {
-        setSavedAtByControl((current) => ({
-          ...current,
-          [controlId]: new Date(),
-        }));
+        dispatchReviewState({
+          type: "save_succeeded",
+          controlId,
+          savedAt: new Date(),
+        });
       } else {
+        dispatchReviewState({ type: "save_failed", controlId });
         toast.error("The review verdict could not be saved.");
       }
       return response.ok;
@@ -203,16 +165,41 @@ export function AssessmentReviewClient({
     }
   }
 
-  function saveVerdict(
-    controlId: string,
-    reviewStatus: "compliant" | "non_compliant",
-  ) {
-    setVerdicts((current) => ({ ...current, [controlId]: reviewStatus }));
-    scheduleVerdict(controlId, {
-      review_status: reviewStatus,
-      reviewer_note: reviewerNotes[controlId] ?? "",
-    });
-  }
+  const saveVerdict = useCallback(
+    (
+      controlId: string,
+      reviewStatus: Exclude<ReviewVerdict, null>,
+      reviewerNote: string,
+    ) => {
+      dispatchReviewState({
+        type: "verdict_changed",
+        controlId,
+        verdict: reviewStatus,
+      });
+      scheduleVerdict(controlId, {
+        review_status: reviewStatus,
+        reviewer_note: reviewerNote,
+      });
+    },
+    [scheduleVerdict],
+  );
+
+  const saveReviewerNote = useCallback(
+    (controlId: string, reviewerNote: string, verdict: ReviewVerdict) => {
+      dispatchReviewState({
+        type: "note_changed",
+        controlId,
+        note: reviewerNote,
+      });
+      if (verdict) {
+        scheduleVerdict(controlId, {
+          review_status: verdict,
+          reviewer_note: reviewerNote,
+        });
+      }
+    },
+    [scheduleVerdict],
+  );
 
   async function handleResend() {
     setResending(true);
@@ -233,17 +220,16 @@ export function AssessmentReviewClient({
     }
   }
 
-  function openRaiseRiskModal(
-    controlId: string,
-    text: string,
-    guidanceText?: string,
-  ) {
-    setDialogControlId(controlId);
-    setDialogTitle(`Risk Exception: ${controlId} - ${text.slice(0, 50)}`);
-    setDialogDescription(
-      guidanceText ?? `Control failure detected for ${controlId}`,
-    );
-  }
+  const openRaiseRiskModal = useCallback(
+    (controlId: string, text: string, guidanceText?: string) => {
+      setDialogControlId(controlId);
+      setDialogTitle(`Risk Exception: ${controlId} - ${text.slice(0, 50)}`);
+      setDialogDescription(
+        guidanceText ?? `Control failure detected for ${controlId}`,
+      );
+    },
+    [],
+  );
 
   return (
     <div className="space-y-8">
@@ -435,218 +421,16 @@ export function AssessmentReviewClient({
         </h2>
 
         {[...sectionsMap.entries()].map(([sectionTitle, sectionQuestions]) => (
-          <div
+          <ReviewSection
             key={sectionTitle}
-            className="bg-card space-y-3 rounded-lg border p-4"
-          >
-            <h3 className="text-foreground border-b pb-2 text-sm font-semibold">
-              {sectionTitle}
-            </h3>
-
-            <div className="space-y-4 pt-1">
-              {sectionQuestions.map((q) => {
-                const statusBadge = CONTROL_STATUS_BADGES[q.control_status];
-
-                return (
-                  <div
-                    key={q.control_id}
-                    className={`space-y-3 rounded-md border p-4 text-xs transition-colors ${
-                      q.is_suppressed
-                        ? "bg-muted/40 opacity-75"
-                        : "bg-background"
-                    }`}
-                  >
-                    {/* Control Header */}
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-foreground font-mono text-xs font-bold">
-                            {q.control_id}
-                          </span>
-                          <Badge
-                            variant="outline"
-                            className={statusBadge.className}
-                          >
-                            {statusBadge.label}
-                          </Badge>
-                          {q.is_required ? (
-                            <span className="text-muted-foreground text-[10px]">
-                              (Required)
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="text-foreground text-sm font-medium">
-                          {q.text}
-                        </p>
-                      </div>
-
-                      {!q.is_suppressed && !isCompleted ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            openRaiseRiskModal(
-                              q.control_id,
-                              q.text,
-                              q.suggested_guidance?.suggested_remediation,
-                            )
-                          }
-                        >
-                          Raise Risk
-                        </Button>
-                      ) : null}
-                    </div>
-
-                    {!q.is_suppressed && !isCompleted ? (
-                      <div className="space-y-2 rounded-md border bg-muted/20 p-3">
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            variant={
-                              verdicts[q.control_id] === "compliant"
-                                ? "default"
-                                : "outline"
-                            }
-                            onClick={() =>
-                              saveVerdict(q.control_id, "compliant")
-                            }
-                          >
-                            Compliant
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant={
-                              verdicts[q.control_id] === "non_compliant"
-                                ? "destructive"
-                                : "outline"
-                            }
-                            onClick={() =>
-                              saveVerdict(q.control_id, "non_compliant")
-                            }
-                          >
-                            Non-compliant
-                          </Button>
-                        </div>
-                        <Textarea
-                          value={reviewerNotes[q.control_id] ?? ""}
-                          placeholder="Explain what the vendor should change"
-                          onChange={(event) => {
-                            const reviewerNote = event.target.value;
-                            setReviewerNotes((current) => ({
-                              ...current,
-                              [q.control_id]: reviewerNote,
-                            }));
-                            const verdict = verdicts[q.control_id];
-                            if (verdict) {
-                              scheduleVerdict(q.control_id, {
-                                review_status: verdict,
-                                reviewer_note: reviewerNote,
-                              });
-                            }
-                          }}
-                        />
-                        {saveErrors[q.control_id] ? (
-                          <p className="text-destructive text-[11px]">
-                            Save failed. Change the verdict or note to retry.
-                          </p>
-                        ) : savedAtByControl[q.control_id] ? (
-                          <p className="text-muted-foreground text-[11px]">
-                            Saved{" "}
-                            {savedAtByControl[q.control_id].toLocaleTimeString(
-                              [],
-                              { hour: "2-digit", minute: "2-digit" },
-                            )}
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : null}
-
-                    {/* Vendor Answer */}
-                    <div className="bg-muted/20 space-y-1 rounded border p-2">
-                      <span className="text-muted-foreground text-[11px] font-semibold">
-                        Vendor Answer:
-                      </span>
-                      <div className="text-foreground font-mono text-xs">
-                        {q.response_value !== null &&
-                        q.response_value !== undefined ? (
-                          Array.isArray(q.response_value) ? (
-                            q.response_value.join(", ")
-                          ) : (
-                            String(q.response_value)
-                          )
-                        ) : (
-                          <span className="text-muted-foreground italic">
-                            No answer provided
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Evidence Files */}
-                      {q.evidence.length > 0 ? (
-                        <div className="mt-2 space-y-1 border-t pt-2">
-                          <span className="text-muted-foreground block text-[11px] font-semibold">
-                            Attached Evidence ({q.evidence.length}):
-                          </span>
-                          <ul className="space-y-1">
-                            {q.evidence.map((ev) => (
-                              <li
-                                key={ev.id}
-                                className="flex items-center justify-between text-xs"
-                              >
-                                <span>
-                                  {ev.filename} ({(ev.size / 1024).toFixed(1)}{" "}
-                                  KB)
-                                </span>
-                                <a
-                                  href={ev.download_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-primary font-medium hover:underline"
-                                >
-                                  Download ↗
-                                </a>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </div>
-
-                    {/* Suggested Mitigation Guidance */}
-                    {q.suggested_guidance ? (
-                      <div className="space-y-1 rounded border border-blue-500/30 bg-blue-500/10 p-2.5 text-xs text-blue-900 dark:text-blue-200">
-                        <span className="block font-semibold">
-                          Suggested Mitigation Guidance:
-                        </span>
-                        <p>{q.suggested_guidance.suggested_remediation}</p>
-                      </div>
-                    ) : null}
-
-                    {/* Associated Raised Risks */}
-                    {q.associated_risks.length > 0 ? (
-                      <div className="border-primary/30 bg-primary/5 space-y-1 rounded border p-2.5">
-                        <span className="text-primary block text-xs font-semibold">
-                          Associated Identified Risks (
-                          {q.associated_risks.length}):
-                        </span>
-                        {q.associated_risks.map((ar) => (
-                          <div
-                            key={ar.id}
-                            className="flex items-center justify-between font-mono text-xs"
-                          >
-                            <span>{ar.title}</span>
-                            <span className="text-primary font-bold">
-                              Score: {ar.residual_score}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+            title={sectionTitle}
+            questions={sectionQuestions}
+            reviewState={reviewState}
+            isCompleted={isCompleted}
+            onVerdictChange={saveVerdict}
+            onNoteChange={saveReviewerNote}
+            onRaiseRisk={openRaiseRiskModal}
+          />
         ))}
       </section>
 

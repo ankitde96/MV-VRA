@@ -40,6 +40,15 @@ the correction boundary independently of the UI. Both reviewer and vendor forms 
 `docs/features/assessment-workflow-stage-4-send-and-history.md` and
 `docs/features/assessment-workflow-stage-5-review-resend.md`.
 
+**Reviewer experience Stage 0 (2026-08-20):** The internal review page keeps workflow and
+network orchestration in `components/assessments/assessment-review-client.tsx`, while
+`components/assessments/review/review-state.ts` owns per-control client state and the
+`ReviewSection`/memoized `ReviewQuestionRow` pair owns question rendering. Unchanged control
+state retains object identity across reducer actions, so one note edit can remain row-local.
+`hooks/use-review-url-state.ts` is the query-string persistence boundary for Stage 3; it has
+no named fields or current consumer in Stage 0. Service, repository, and authorization
+boundaries are unchanged. See `DECISIONS.md` 046.
+
 ## 1. What this system is
 
 **MV-VRA** (MoneyView Vendor Risk Assessment) is a centralized system of record for
