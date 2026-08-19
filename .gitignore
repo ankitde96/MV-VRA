@@ -22,3 +22,6 @@ tsconfig.tsbuildinfo
 coverage/
 playwright-report/
 test-results/
+
+# local development object storage
+.storage-local/

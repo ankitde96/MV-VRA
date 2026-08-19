@@ -5,7 +5,8 @@
  * (`docs/questionnaires/wfpl-vendor-risk-assessment-v2.0.csv`, the client-provided
  * questionnaire, copied verbatim); this script is the only thing that ever reads it.
  *
- * Every question is `single_select` Yes/No by default, per explicit direction — except the
+ * Every question requires an evidence attachment and is `single_select` Yes/No by default,
+ * per explicit direction — except the
  * 5 questions in `TEXT_TYPE_QUESTION_NUMBERS` below that are genuinely open-ended (e.g.
  * "Provide the vendor's name, registered address, and contact details") and get `type:
  * "text"` instead, per a follow-up direction correcting the all-Yes/No default for exactly
@@ -188,6 +189,7 @@ function buildSchemaFromCsv(rows: string[][]): QuestionsSchema {
             text: questionText,
             type: "text",
             required: true,
+            evidence: { required: true },
             evidence_hint: evidenceHint,
           }
         : {
@@ -196,6 +198,7 @@ function buildSchemaFromCsv(rows: string[][]): QuestionsSchema {
             type: "single_select",
             options: ["Yes", "No"],
             required: true,
+            evidence: { required: true },
             evidence_hint: evidenceHint,
           },
     );
