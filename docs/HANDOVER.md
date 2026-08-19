@@ -6,7 +6,11 @@
 
 ---
 
-## Current state (as of 2026-08-19)
+## Current state (as of 2026-08-20)
+
+- **Future ideas now have one canonical holding area:** `docs/FUTURE-IDEAS.md` consolidates
+  operational hardening, the eight explicitly parked product areas, and still-relevant
+  deferred items from the plans and feature traces. Entries are ideas, not approved work.
 
 - **Assessment workflow revamp complete — Stages 1–5 verified.** Stage 5 adds explicit
   per-control compliant/non-compliant review, reviewer-note autosave, a bounded correction

@@ -65,7 +65,8 @@ is accepted only in development; other environments continue to require a genera
 
 MVP Phases 0–11 and two post-MVP UI revamp rounds are complete — see `docs/HANDOVER.md` for
 current state (updated every session, read it first) and `docs/ARCHITECTURE.md` for the
-system map.
+system map. Deferred post-MVP possibilities are consolidated in `docs/FUTURE-IDEAS.md`;
+listing there does not authorize or schedule implementation.
 
 ## Browser tests
 
