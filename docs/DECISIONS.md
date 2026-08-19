@@ -23,6 +23,76 @@
 
 ---
 
+## [2026-08-19] 040 — Assessment workflow revamp: eight design decisions taken before any code
+
+**Decision:** Eight decisions (D1–D8) governing the six-part assessment workflow change,
+recorded in full in `ASSESSMENT-WORKFLOW-PLAN.md` §2. The load-bearing four:
+
+- **D1 — per-vendor questionnaire tailoring edits that one assessment's `template_snapshot`
+  while it is `draft`, frozen on send.** No new collection, no per-vendor template variant.
+- **D2 — `vendor.spoc` is replaced by `vendor.spocs[]`**, additively; the legacy field stays
+  in schema and data as read-by-nothing rather than being deleted.
+- **D4 — evidence upload is offered on every question**, with `evidence.required` still the
+  submit blocker and `evidence_hint` shown as guidance.
+- **D3 — `completeReview()` hard-blocks server-side** unless every visible question carries a
+  compliant/non-compliant verdict and every non-compliant one has a linked `Risk`.
+
+**Context:** Six defects were reported against the shipped flow. Code reading established
+that three of them have narrower causes than reported: `EvidenceUpload` is fully built but
+gated on a `question.evidence` object the real 130-question seeded template never emits
+(it writes `evidence_hint` instead); `"draft"` is already in the assessment status enum and
+is written by nothing, because `assignAssessment()` sets `"sent"` directly; and
+`Response.is_failed`/`has_exception` exist but are written by nothing, so a control only ever
+reads `failed` because a risk happens to exist on it.
+
+**Rationale:** D1 falls straight out of 007 — `template_snapshot` is _already_ a
+per-assessment frozen deep clone, so "customise this vendor's checklist" needs no new
+storage, no new versioning, and cannot touch the published template, satisfying
+`CONSTRAINTS.md` #11 by construction. D4 was chosen over "show the control only where hinted"
+specifically because relaxing a render/validation gate is snapshot-agnostic: it fixes every
+already-frozen `template_snapshot` at once, where re-authoring the template would fix none of
+them. D3 mirrors `completeOffboarding()`'s existing readiness gates; a silently-completed
+un-triaged control is the precise under-assessment failure `DATA-MODEL.md` §4 exists to
+prevent. D2 was taken as a full replacement rather than an `additional_contacts[]` bolt-on to
+avoid two permanent parallel notions of "SPOC".
+
+**Alternatives rejected:**
+
+- _A persistent per-vendor template variant collection (vs D1)_ — equivalent user-visible
+  behaviour, but reintroduces versioning and immutability rules that 007 already solved.
+- _Warn-only completion (vs D3)_ — allows closing an assessment with an un-triaged
+  non-compliant control.
+- _Keep the single SPOC, add `additional_contacts[]` (vs D2)_ — avoids touching OTP auth, at
+  the cost of two SPOC concepts and a two-branch login lookup forever.
+- _Recipient ticking drives only the notification email (vs D5)_ — does not deliver "that
+  person will only get the access" literally.
+- _Whole questionnaire re-opens on resend (vs D6)_ — lets an approved answer change silently
+  after approval, forcing a full re-check every round.
+- _One combined change set (vs D7)_ — a single diff across schema, auth, portal and review;
+  `CONSTRAINTS.md` #13 exists to prevent exactly that.
+
+**Consequences:** The assessment lifecycle gains a real `draft` stage and a new
+`changes_requested` status, so `EDITABLE_STATUSES` (currently duplicated in
+`lib/services/portal-assessment.ts` and the portal page) must become one shared constant.
+The portal assessment list gains a mandatory status/recipient filter — it has none today, a
+latent leak the moment anything writes `draft`. The portal session payload gains `spocId`
+(D8), invalidating existing portal cookies once; this is deliberately done in the same stage
+as the SPOC schema change so `lib/auth/**` is touched once, not twice. `due_date` moves from
+assignment time to send time. Three new emails are added against a mailer that still has only
+a `console` transport, so Stages 4–5 are not deliverable to real vendors until
+`ARCHITECTURE.md` §7's mail-provider question is answered. Two pre-existing defects are
+folded in: `completeReview()` has neither an archived guard nor any status guard, and
+`getAssessmentReviewData()`'s `passedCount` mis-buckets non-required unanswered questions.
+
+**Decided by:** Project owner (D1–D7 chosen explicitly; D8 proposed by Claude and adopted).
+Design facilitated by Claude Opus 5 (`claude-opus-5[1m]`) via the `brainstorming` skill.
+
+**Supersedes / Superseded by:** Builds on 007 (snapshot immutability), 019 (assignment sets
+`sent` — D1/D3 change that to `draft`), 020 (edit-lock boundary), 022 (vendor-owned CAP
+targeting), 024 (RBAC capabilities). Supersedes none.
+
+---
+
 ## [2026-08-18] 039 — Work directly on main; branches and pull requests are opt-in
 
 **Decision:** All implementation work should be performed directly in the `main` working
