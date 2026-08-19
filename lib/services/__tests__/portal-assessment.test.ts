@@ -204,6 +204,35 @@ describe("portal assessment answering (integration)", () => {
     });
     expect(stored?.response_value).toBeNull();
     expect(stored?.evidence).toHaveLength(1);
+    expect(stored?.evidence[0]?.uploaded_by.toString()).toBe(spocId.toString());
+  });
+
+  it("accepts CSV and TXT evidence when MIME and extension agree", async () => {
+    await dbConnect();
+    const assessment = await createAssessment();
+
+    const csv = await uploadEvidence(
+      session(),
+      assessment._id.toString(),
+      "Q1",
+      {
+        filename: "controls.csv",
+        mime: "text/csv",
+        body: Buffer.from("control,status\nQ1,implemented"),
+      },
+    );
+    const text = await uploadEvidence(
+      session(),
+      assessment._id.toString(),
+      "Q1",
+      {
+        filename: "readme.txt",
+        mime: "text/plain",
+        body: Buffer.from("supporting notes"),
+      },
+    );
+
+    expect([csv.mime, text.mime]).toEqual(["text/csv", "text/plain"]);
   });
 
   it("rejects an evidence upload with a disallowed MIME type", async () => {

@@ -1,6 +1,6 @@
 # REVIEWER-EXPERIENCE-PLAN.md — Reviewer Experience & Reporting Upgrade
 
-> **Status: Stage 0 complete and verified on 2026-08-20. Stages 1–7 remain plan-only.**
+> **Status: Stages 0–1 complete and verified on 2026-08-20. Stages 2–7 remain plan-only.**
 > Produced through the brainstorming workflow on 2026-08-20. Supersedes nothing; extends
 > the completed work in `docs/ASSESSMENT-WORKFLOW-PLAN.md` (Stages 1–5, all shipped).
 >
@@ -145,6 +145,9 @@ before the first edit.
 ---
 
 ## Stage 1 — Schema & upload foundations
+
+**Status: ✅ Complete (2026-08-20).** See
+`docs/features/reviewer-experience-stage-1-foundations.md` and `DECISIONS.md` 047.
 
 **Goal.** Land every additive data change the later stages read, in one reviewable diff.
 

@@ -8,16 +8,17 @@
 
 ## Current state (as of 2026-08-20)
 
-- **Reviewer-experience upgrade Stage 0 complete and verified:** the review page now keeps
-  per-control verdict/note/save state in one reducer and renders through an extracted
-  `ReviewSection` plus memoized `ReviewQuestionRow`; a generic, currently field-free
-  `useReviewUrlState()` establishes Stage 3's URL persistence boundary. There is no visible,
-  API, schema, auth, or storage behavior change. `npm run verify` passed (30 files, 228 tests,
-  production build), and the unchanged correction journey passed 2/2 on Chromium and mobile
-  Chromium. See `docs/features/reviewer-experience-stage-0-decomposition.md` and
-  `DECISIONS.md` 046. **Next discrete request is Stage 1 — schema & upload foundations.** Read
-  plan §2.1 before Stage 4: reviewer evidence links still appear to target the portal-only
-  route and must be browser-confirmed before that stage.
+- **Reviewer-experience upgrade Stages 0–1 complete and verified.** Stage 0 decomposes the
+  review page into reducer-owned state, `ReviewSection`, and memoized `ReviewQuestionRow`,
+  with a field-free URL-state hook ready for Stage 3. Stage 1 adds advisory
+  `Response.evidence_flags[]`, permits CSV/TXT with MIME/extension agreement while retaining
+  the 10 MB cap and ZIP rejection, records exact SPOC IDs on new evidence, and exposes upload
+  timestamps plus workspace-scoped uploader labels with a legacy vendor-name fallback.
+  `npm run verify` passed (32 files, 239 tests, production build). See
+  `docs/features/reviewer-experience-stage-{0-decomposition,1-foundations}.md` and
+  `DECISIONS.md` 046–047. **Next discrete request is Stage 2 — demo data v2.** Read plan §2.1
+  before Stage 4: reviewer evidence links still appear to target the portal-only route and
+  must be browser-confirmed before that stage.
 
 - **Future ideas now have one canonical holding area:** `docs/FUTURE-IDEAS.md` consolidates
   operational hardening, the eight explicitly parked product areas, and still-relevant

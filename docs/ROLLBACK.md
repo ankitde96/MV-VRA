@@ -34,6 +34,28 @@ For anything smaller, `git diff` and `git restore` are sufficient.
 Overwrite this block at the start of each risky change. One at a time.
 
 ```
+Reviewer experience upgrade — Stage 1: schema and upload foundations
+(2026-08-20, DONE). Safe baseline: 94500144363457d1c34e33e819523cbeca31b2b5
+(pushed origin/main; clean worktree at stage start).
+
+Additive Response.evidence_flags[] schema; no migration or destructive write. CSV/TXT are
+added to the shared 10 MB upload allowlist with filename-extension agreement, affecting
+evidence, vendor-document, and offboarding-certificate callers consistently. New evidence
+records use the already-authenticated portal spocId as uploaded_by; legacy vendor-id records
+remain readable and label as the vendor. Reviewer data resolves uploader labels with one
+workspace-scoped batch query, never per evidence item.
+
+Reversible by restoring the Stage 1 files from the safe baseline. Documents already written
+with evidence_flags remain valid additive data if code is reverted. CSV/TXT files uploaded
+while deployed remain stored and retrievable; reverting only prevents new uploads of those
+types. No authentication/session code or database cleanup is involved.
+
+Verified: focused Stage 1 gate passed 4 files/51 tests plus typecheck; `npm run verify`
+passed 32 files/239 tests and the production build. No Playwright run: this stage has no UI
+change, and the integration suite exercises CSV/TXT against real local-fs storage. See the
+feature trace for exact commands and the one existing lint advisory.
+
+Prior active plan (closed):
 Reviewer experience upgrade — Stage 0: review-page decomposition
 (2026-08-20, DONE). Safe baseline: 453441ebcac2b9d33aedef1872fcc4c26f3ad717
 (local main; clean worktree at stage start).

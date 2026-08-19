@@ -50,8 +50,9 @@ These eight areas come directly from the MVP specification's future roadmap:
 
 ## 3. Assessment and evidence workflow ideas
 
-- Revisit the evidence MIME/extension allowlist. ZIP, CSV, and TXT evidence are currently
-  rejected even though some vendors may reasonably need them.
+- Revisit archive evidence only after payload inspection/virus scanning exists. CSV and TXT
+  are accepted with MIME/extension agreement as of reviewer-experience Stage 1; ZIP remains
+  rejected because archives hide their payloads.
 - Decide whether questionnaire resend rounds need a configurable maximum. `review_round`
   already provides the data needed to enforce one.
 - Support larger evidence artifacts with multipart/chunked uploads if the current

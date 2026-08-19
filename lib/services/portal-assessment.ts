@@ -186,7 +186,11 @@ export async function uploadEvidence(
   // the sole file-type authority for a question with no `evidence` config; the accept-list
   // check remains scoped to when the template author actually set one.
 
-  validateUploadedFile({ mime: input.mime, size: input.body.byteLength });
+  validateUploadedFile({
+    filename: input.filename,
+    mime: input.mime,
+    size: input.body.byteLength,
+  });
 
   const accept = question.evidence?.accept;
   if (accept?.length) {
@@ -213,7 +217,9 @@ export async function uploadEvidence(
     filename: input.filename,
     mime: input.mime,
     size: stored.size,
-    uploaded_by: new Types.ObjectId(session.vendorId),
+    // Stage 1 provenance: the signed portal session already identifies the exact SPOC.
+    // Older evidence stored vendorId and remains readable through the reviewer fallback.
+    uploaded_by: new Types.ObjectId(session.spocId),
     uploaded_at: new Date(),
   };
   await responseRepo.addEvidence(assessmentId, controlId, evidence);

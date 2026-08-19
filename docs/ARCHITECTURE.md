@@ -186,8 +186,11 @@ Collections (spec §3, summarized — full field/index detail in `DATA-MODEL.md`
   the conditional logic). Versioned; immutable once published or archived.
 - **Question / Control Response** — `control_id`, `question_text`, `response_value`,
   `evidence` (array of `{file_key, filename, mime, size, uploaded_at, uploaded_by}`,
-  DATA-MODEL.md §2). `is_suppressed` exists on the model but is **not written by Phase 7**
-  — see `DECISIONS.md` 020's addendum below.
+  DATA-MODEL.md §2), and advisory `evidence_flags`. New portal evidence attributes the signed
+  SPOC ID; the reviewer service resolves uploader labels in one workspace-scoped batch and
+  retains a vendor-name fallback for legacy records (`DECISIONS.md` 047). `is_suppressed`
+  exists on the model but is **not written by Phase 7** — see `DECISIONS.md` 020's addendum
+  below.
 - **Identified Risk** — `risk_id`, `control_id`, `severity`, `residual_score`,
   `remediation_owner`, `status`.
 

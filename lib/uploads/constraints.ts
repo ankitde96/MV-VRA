@@ -15,10 +15,17 @@ const ALLOWED_MIME_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "image/png",
   "image/jpeg",
+  "text/csv",
+  "text/plain",
+]);
+const REQUIRED_EXTENSIONS_BY_MIME = new Map([
+  ["text/csv", ".csv"],
+  ["text/plain", ".txt"],
 ]);
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 export function validateUploadedFile(input: {
+  filename: string;
   mime: string;
   size: number;
 }): void {
@@ -31,6 +38,15 @@ export function validateUploadedFile(input: {
   if (input.size > MAX_UPLOAD_BYTES) {
     throw new ValidationError(
       `File exceeds the ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB upload limit`,
+    );
+  }
+  const requiredExtension = REQUIRED_EXTENSIONS_BY_MIME.get(input.mime);
+  if (
+    requiredExtension &&
+    !input.filename.toLowerCase().endsWith(requiredExtension)
+  ) {
+    throw new ValidationError(
+      `${input.mime} uploads must use the ${requiredExtension} file extension`,
     );
   }
 }

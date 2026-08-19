@@ -206,6 +206,7 @@ reviewer's per-control queries stay cheap.
 | `question_text`                        | string  | snapshotted at answer time                                       |
 | `response_value`                       | mixed   | shape depends on question type                                   |
 | `evidence`                             | array   | `[{ file_key, filename, mime, size, uploaded_at, uploaded_by }]` |
+| `evidence_flags`                       | array   | advisory `[{ evidence_id, flag, note, flagged_at, flagged_by }]` |
 | `is_suppressed`                        | boolean | true when conditional logic hid the question                     |
 | `answered_at`, `answered_by`           |         |                                                                  |
 | `review_status`                        | enum?   | `compliant` \| `non_compliant`; null means unmarked              |

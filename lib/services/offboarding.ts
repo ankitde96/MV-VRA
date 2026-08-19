@@ -257,7 +257,11 @@ export async function uploadOffboardingCertificate(
   kind: CertificateKind,
   input: UploadCertificateInput,
 ) {
-  validateUploadedFile({ mime: input.mime, size: input.body.byteLength });
+  validateUploadedFile({
+    filename: input.filename,
+    mime: input.mime,
+    size: input.body.byteLength,
+  });
 
   await dbConnect();
   const repo = new OffboardingRepository(ctx);

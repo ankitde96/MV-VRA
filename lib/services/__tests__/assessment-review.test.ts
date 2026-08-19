@@ -119,7 +119,113 @@ describe("AssessmentReviewService (integration)", () => {
       Response.deleteMany({
         workspace_id: { $in: [workspaceId, otherWorkspaceId] },
       }),
+      User.deleteMany({
+        "memberships.workspace_id": {
+          $in: [workspaceId, otherWorkspaceId],
+        },
+      }),
     ]);
+  });
+
+  it("returns evidence timestamps and batched workspace-scoped uploader labels", async () => {
+    await dbConnect();
+    const assessment = await seedFixtures();
+    await Assessment.updateOne(
+      { _id: assessment._id },
+      {
+        $set: {
+          template_snapshot: {
+            schema_format_version: 1,
+            sections: [
+              {
+                id: "evidence",
+                title: "Evidence",
+                questions: [
+                  {
+                    control_id: "EV-1",
+                    text: "Provide evidence",
+                    type: "text",
+                    required: true,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    );
+    const vendor = await Vendor.findById(vendorId).lean();
+    const spocId = vendor?.spocs[0]?._id;
+    if (!spocId) throw new Error("Expected seeded SPOC");
+    const internalUploader = await User.create({
+      email: `review-uploader-${workspaceId.toString()}@example.test`,
+      name: "Internal Uploader",
+      password_hash: "not-used",
+      memberships: [{ workspace_id: workspaceId, role: "risk_analyst" }],
+      status: "active",
+    });
+    const foreignUploader = await User.create({
+      email: `foreign-uploader-${otherWorkspaceId.toString()}@example.test`,
+      name: "Foreign Uploader",
+      password_hash: "not-used",
+      memberships: [{ workspace_id: otherWorkspaceId, role: "risk_analyst" }],
+      status: "active",
+    });
+    const uploadedAt = new Date("2026-08-20T01:02:03.000Z");
+    await Response.create({
+      workspace_id: workspaceId,
+      assessment_id: assessment._id,
+      control_id: "EV-1",
+      question_text: "Provide evidence",
+      response_value: "Attached",
+      evidence: [
+        {
+          file_key: "spoc.pdf",
+          filename: "spoc.pdf",
+          mime: "application/pdf",
+          size: 1,
+          uploaded_at: uploadedAt,
+          uploaded_by: spocId,
+        },
+        {
+          file_key: "internal.pdf",
+          filename: "internal.pdf",
+          mime: "application/pdf",
+          size: 1,
+          uploaded_at: uploadedAt,
+          uploaded_by: internalUploader._id,
+        },
+        {
+          file_key: "legacy.pdf",
+          filename: "legacy.pdf",
+          mime: "application/pdf",
+          size: 1,
+          uploaded_at: uploadedAt,
+          uploaded_by: vendorId,
+        },
+        {
+          file_key: "foreign.pdf",
+          filename: "foreign.pdf",
+          mime: "application/pdf",
+          size: 1,
+          uploaded_at: uploadedAt,
+          uploaded_by: foreignUploader._id,
+        },
+      ],
+    });
+
+    const result = await new AssessmentReviewService({
+      workspaceId,
+    }).getAssessmentReviewData(assessment._id.toString());
+    const evidence = result.questions[0]?.evidence;
+
+    expect(evidence?.map((item) => item.uploaded_by_label)).toEqual([
+      "S Poc",
+      "Internal Uploader",
+      "Review Test Vendor",
+      "Unknown uploader",
+    ]);
+    expect(evidence?.[0]?.uploaded_at).toBe(uploadedAt.toISOString());
   });
 
   it("marks response verdicts and resends only when a non-compliant response exists", async () => {

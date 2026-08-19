@@ -21,6 +21,19 @@ const evidenceFileSchema = new Schema(
   { _id: true },
 );
 
+// REVIEWER-EXPERIENCE-PLAN.md Stage 1 — advisory reviewer annotations on individual
+// evidence items. These do not alter a response verdict or gate review completion.
+const evidenceFlagSchema = new Schema(
+  {
+    evidence_id: { type: Schema.Types.ObjectId, required: true },
+    flag: { type: String, enum: ["insufficient"], required: true },
+    note: { type: String, default: "" },
+    flagged_at: { type: Date, required: true },
+    flagged_by: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  },
+  { _id: false },
+);
+
 const responseSchema = new Schema(
   {
     workspace_id: {
@@ -37,6 +50,7 @@ const responseSchema = new Schema(
     question_text: { type: String, required: true },
     response_value: { type: Schema.Types.Mixed, default: null },
     evidence: { type: [evidenceFileSchema], default: [] },
+    evidence_flags: { type: [evidenceFlagSchema], default: [] },
     // DATA-MODEL.md §2 calls this load-bearing for the suppressed-vs-skipped distinction,
     // but Phase 7's validator (lib/services/portal-assessment.ts, submitAssessment())
     // recomputes visibility fresh via computeVisibility() at submission time instead of

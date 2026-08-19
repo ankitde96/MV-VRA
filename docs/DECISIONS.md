@@ -23,6 +23,40 @@
 
 ---
 
+## [2026-08-20] 047 — Evidence provenance uses the SPOC principal and text uploads require matching extensions
+
+**Decision:** Add advisory `Response.evidence_flags[]` with no completion gate. Permit
+`text/csv` only for `.csv` filenames and `text/plain` only for `.txt`, retaining the 10 MB
+limit and rejecting ZIP. New portal evidence records store the signed session's `spocId` as
+`uploaded_by`; reviewer reads resolve current-vendor SPOCs and legacy vendor IDs locally,
+then resolve remaining internal user IDs in one workspace-scoped batch query.
+
+**Context:** Reviewer-experience Stage 1 needs flag storage, common control-list exports,
+and human-readable provenance. Code inspection corrected the plan's assumption that
+`uploaded_by` already identified a SPOC: the sole evidence writer stored `vendorId`, which
+could identify only the organization.
+
+**Rationale:** The session already contains the SPOC ID derived during OTP verification, so
+using it improves provenance without changing authentication or trusting request input.
+Keeping a legacy vendor-ID label avoids a migration. CSV/TXT MIME declarations are
+permissive; requiring their conventional extensions closes the most obvious declaration
+mismatch while preserving the existing centralized validator and storage abstraction.
+
+**Alternatives rejected:** Keep writing `vendorId` — cannot name the uploader. Backfill old
+evidence — destructive operational work with no reliable historical SPOC source. Perform a
+lookup per evidence item — creates an avoidable N+1 path on 130-control assessments. Accept
+ZIP — archive contents cannot be inspected and virus scanning remains deferred.
+
+**Consequences:** New evidence provenance is precise; old records display the vendor legal
+name. Internal uploader names are returned only when that user belongs to the reviewer's
+workspace. Evidence flags remain inert until Stage 4 adds their write route and UI. Every
+caller of the shared upload validator must now provide the original filename.
+
+**Decided by:** Project owner through `REVIEWER-EXPERIENCE-PLAN.md` R2/R5; implementation
+detail reasoned by Codex (GPT-5).
+
+---
+
 ## [2026-08-20] 046 — Reviewer row state is isolated before productivity features land
 
 **Decision:** Keep review workflow/network orchestration in

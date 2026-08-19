@@ -23,7 +23,11 @@ export async function uploadVendorDocument(
   vendorId: string,
   input: UploadVendorDocumentInput,
 ) {
-  validateUploadedFile({ mime: input.mime, size: input.body.byteLength });
+  validateUploadedFile({
+    filename: input.filename,
+    mime: input.mime,
+    size: input.body.byteLength,
+  });
 
   await dbConnect();
   const vendorRepo = new VendorRepository(ctx);

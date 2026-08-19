@@ -129,6 +129,8 @@ export interface ReviewerQuestionItem {
     filename: string;
     mime: string;
     size: number;
+    uploaded_at: string;
+    uploaded_by_label: string;
     download_url: string;
   }>;
   is_suppressed: boolean;
@@ -187,6 +189,39 @@ export class AssessmentReviewService {
       throw new NotFoundError(
         `Vendor or engagement not found for assessment: ${assessmentId}`,
       );
+    }
+
+    const uploaderLabels = new Map<string, string>([
+      [vendor._id.toString(), vendor.legal_name],
+      ...vendor.spocs.map(
+        (spoc) => [spoc._id.toString(), spoc.name] as [string, string],
+      ),
+    ]);
+    const unresolvedUploaderIds = [
+      ...new Map(
+        responses
+          .flatMap((response) => response.evidence)
+          .filter(
+            (evidence) => !uploaderLabels.has(evidence.uploaded_by.toString()),
+          )
+          .map((evidence) => [
+            evidence.uploaded_by.toString(),
+            evidence.uploaded_by,
+          ]),
+      ).values(),
+    ];
+    if (unresolvedUploaderIds.length > 0) {
+      const internalUploaders = await User.find({
+        _id: { $in: unresolvedUploaderIds },
+        memberships: {
+          $elemMatch: { workspace_id: toObjectId(this.ctx.workspaceId) },
+        },
+      })
+        .select({ _id: 1, name: 1 })
+        .lean();
+      for (const uploader of internalUploaders) {
+        uploaderLabels.set(uploader._id.toString(), uploader.name);
+      }
     }
 
     // Build answers map for evaluator
@@ -296,6 +331,10 @@ export class AssessmentReviewService {
             filename: e.filename,
             mime: e.mime,
             size: e.size,
+            uploaded_at: e.uploaded_at.toISOString(),
+            uploaded_by_label:
+              uploaderLabels.get(e.uploaded_by.toString()) ??
+              "Unknown uploader",
             download_url: `/api/portal/assessments/${assessmentId}/responses/${q.control_id}/evidence/${e._id!.toString()}`,
           })),
           is_suppressed: isSuppressed,

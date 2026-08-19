@@ -146,8 +146,11 @@ control_id}` unique index.
 6. Evidence uploads go through the storage module (✅ BUILT, Phase 4) via `uploadEvidence()`
    — `POST .../responses/[controlId]/evidence` — key namespaced
    `<workspace_id>/assessments/<assessment_id>/<control_id>/<uuid>-<filename>`, the metadata
-   pushed onto the response's `evidence` array. Retrieval is an authorised proxy route
-   (`GET .../evidence/[evidenceId]`), same discipline as Phase 4's vendor-document download.
+   pushed onto the response's `evidence` array. PDF/Office/image plus CSV/TXT are accepted
+   under the shared 10 MB limit; CSV and TXT MIME declarations must match `.csv`/`.txt`, and
+   ZIP remains rejected (`DECISIONS.md` 047). New uploads attribute the authenticated SPOC.
+   Retrieval is an authorised proxy route (`GET .../evidence/[evidenceId]`), same discipline
+   as Phase 4's vendor-document download.
 7. **Response Validation & Pre-Screening** — `submitAssessment()` walks every question in
    the snapshot, skips any the freshly-recomputed `computeVisibility()` marks suppressed,
    and only then checks `required`/`evidence.required` on what's left — blocks submission
