@@ -34,6 +34,56 @@ For anything smaller, `git diff` and `git restore` are sufficient.
 Overwrite this block at the start of each risky change. One at a time.
 
 ```
+Assessment workflow revamp — Stage 2: multiple Vendor SPOCs (2026-08-19, DONE).
+⚠ AUTH-TOUCHING (CONSTRAINTS.md #2) — its own request, own plan, below.
+See docs/ASSESSMENT-WORKFLOW-PLAN.md Stage 2, DECISIONS.md 040/042,
+docs/features/assessment-workflow-stage-2-multi-spoc.md.
+
+Safe baseline: 137031b (local main, Stage 1's commit; not yet pushed to origin).
+
+Files touched — schema: lib/db/models/vendor.ts (adds spocs[], legacy spoc kept unwritten),
+lib/db/models/otp-challenge.ts (adds nullable spoc_id). Auth core: lib/auth/otp-challenge.ts
+(findVendorBySpocEmail resolves spocs[] not the legacy spoc; issueOtpChallenge stores
+spoc_id), lib/services/portal-auth.ts (requestOtp/verifyOtp both spoc-scoped; verifyOtp
+re-checks the matched SPOC is still active at verify time), lib/auth/portal-session.ts
+(PortalSessionPayload gains required spocId — rejects any pre-existing token without it).
+Repository/service: lib/repositories/vendor-repository.ts (addSpoc/updateSpocFields/
+setSpocStatus/setPrimarySpoc, replacing the retired single-object updateSpoc),
+lib/services/vendor-spoc.ts (rewritten), lib/services/vendor-intake.ts (populates spocs[]
+at creation), lib/services/assessment-review.ts (CAP vendor-owner email reads the primary
+spocs[] entry). Routes: deleted app/api/vendors/[id]/spoc/route.ts, added
+app/api/vendors/[id]/spocs/route.ts and .../[spocId]/route.ts (PATCH only, no hard delete —
+DECISIONS.md 042). UI: components/spoc-edit-form.tsx (rewritten, list-based),
+app/(internal)/vendors/[id]/page.tsx, app/(internal)/vendors/page.tsx +
+components/vendors/vendors-table.tsx (SPOC column → primary + count). Ops: new
+scripts/migrate-vendor-spocs.ts (+ npm script), scripts/seed.ts / seed-demo-data.ts extended.
+
+What to re-check if reverting: a real bug was found and fixed during verification (Mongoose
+9 requires `{updatePipeline: true}` for an aggregation-pipeline-array `updateOne` —
+DECISIONS.md 042); if `setPrimarySpoc()` is ever rewritten, re-verify with a real HTTP
+request, not just typecheck, since that bug had zero automated test coverage before this
+stage added one. `spocId` being required in `PortalSessionPayload` means every existing
+portal cookie is invalidated once — acceptable at the 1-hour TTL, but don't "fix" this by
+making the field optional without re-reading DECISIONS.md 040 (D8)'s rationale. The legacy
+`Vendor.spoc` field and its `{'spoc.spoc_email':1}` index are untouched and unread by
+anything new — do not delete either without a separate, explicit decision.
+
+Verified: npm run verify green (212/212 tests — 209 baseline + 3 net new; format/lint/
+typecheck/build all clean; one `sharing.test.ts`/one `portal-assessment.test.ts` failure
+each reproduced as a pre-existing cross-file local-fs storage race, confirmed by passing in
+isolation and on a clean re-run, not a regression). Real HTTP request: ran the actual
+migration script against real pre-existing data (backfilled one real vendor,
+`nithin.r@jify.com`, confirmed idempotent on a second run); logged in as two different
+SPOCs of the same vendor (one via the dev bypass, one via a real OTP read from the console
+mail log) with independently scoped sessions; exercised every guard rail via the API
+(deactivating the primary refused, deactivating the last active SPOC refused, deactivating
+a plain active SPOC succeeded, an inactive SPOC's OTP request returned the byte-identical
+enumeration-safe response with zero real challenges issued, make-primary followed by a
+direct database read confirmed exactly one `is_primary: true`); confirmed the vendor list
+and vendor detail pages render the new SPOC UI correctly. `npm run test:e2e` still not run
+in this sandbox — see the Stage 1 note below, unchanged this stage.
+
+Prior active plan (closed):
 Assessment workflow revamp — Stage 1: evidence upload on every question (2026-08-19,
 DONE). See docs/ASSESSMENT-WORKFLOW-PLAN.md Stage 1,
 docs/features/assessment-workflow-stage-1-evidence-upload.md. Not auth-touching, no schema

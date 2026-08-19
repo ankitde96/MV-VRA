@@ -131,6 +131,66 @@ used it.
 
 ---
 
+## [2026-08-19] 042 — Stage 2 implemented: multi-SPOC guard rails, no hard-delete, and a real Mongoose 9 pipeline-update bug found and fixed
+
+**Decision:** Three implementation choices beyond D2 (`DECISIONS.md` 040) itself:
+
+1. **A SPOC is deactivated (soft), never hard-deleted.** No `DELETE` route exists, despite
+   `ASSESSMENT-WORKFLOW-PLAN.md` Stage 2 originally noting `PATCH|DELETE`. `PATCH` with
+   `{status: "inactive"}` is the only removal path.
+2. **Deactivating the primary SPOC is refused outright**, with a message telling the admin
+   to set a different SPOC as primary first — the service never silently picks a new
+   primary. Deactivating would also be refused if it were the vendor's only active SPOC
+   (independent of primary status).
+3. **The first SPOC a vendor ever gets is its primary by construction** (`spocs.length ===
+0` at add-time) — there is no "who is primary" question to ask when the list starts
+   empty, and every vendor now gets exactly one such SPOC at intake time
+   (`submitVendorIntake()`), so `spocs[]` is never empty for a newly created vendor.
+
+**Context:** Implementing Stage 2. `ASSESSMENT-WORKFLOW-PLAN.md`'s own plan said routes
+"`PATCH|DELETE`"; nothing in the six original requirements calls for actually removing a
+SPOC record, and Stage 4 will reference `spocs[]` entries by id from
+`Assessment.recipients[]` — a hard delete would leave a dangling reference with no schema
+enforcement to catch it.
+
+**Rationale:** (1) avoids inventing referential-integrity handling for a delete Stage 4
+would immediately make unsafe. (2)/(3) mirror the existing pattern this codebase already
+uses for irreversible-by-default state (`completeOffboarding()`'s readiness gates,
+`assertAssessmentNotArchived()`) — refuse loudly at the boundary rather than silently
+picking a value.
+
+**A real bug, found and fixed, not designed around:** `VendorRepository.setPrimarySpoc()`
+uses a `$map`/`$mergeObjects` aggregation-pipeline update so "exactly one primary" is
+atomic (no window with zero or two). The first real-HTTP verification pass hit a `500`:
+Mongoose 9 throws `Cannot pass an array to query updates unless the 'updatePipeline'
+option is set` — the pipeline-array update form now requires that option explicitly, which
+a prior Mongoose major did not. Fixed by passing `{ updatePipeline: true }`; re-verified by
+the same real HTTP request that caught it (deactivate → reactivate → make-primary →
+confirm exactly one `is_primary: true` in the database). No test in this codebase had
+exercised a pipeline-form `updateOne` before this method, which is why `npm run test`
+alone did not catch it — only the real-HTTP-request verification step did, the same
+discipline `HANDOVER.md` credits with catching two real bugs in UI Revamp Round 2.
+
+**Alternatives rejected:**
+
+- _Support `DELETE`, cascading or refusing based on Stage-4 references_ — defers correctly
+  but adds real complexity for a capability nothing in the six requirements asked for.
+- _Auto-reassign primary when the primary is deactivated_ — silently changes who receives
+  vendor-owned CAP escalations and (from Stage 4) questionnaire emails; an explicit admin
+  choice is safer for a contact-of-record change.
+
+**Consequences:** `docs/features/assessment-workflow-stage-2-multi-spoc.md` §7 records the
+bug for future sessions writing a pipeline-form Mongoose 9 update elsewhere in this
+codebase. The vendor intake flow (`lib/services/vendor-intake.ts`) now writes both the
+legacy `spoc` object and a one-entry `spocs[]` in the same document create — duplicated
+data, deliberately, until the legacy field is dropped (`ASSESSMENT-WORKFLOW-PLAN.md` §7).
+
+**Decided by:** Claude Sonnet 5 (`claude-sonnet-5`), implementing D2.
+
+**Supersedes / Superseded by:** Implements D2 (`DECISIONS.md` 040). Supersedes none.
+
+---
+
 ## [2026-08-18] 039 — Work directly on main; branches and pull requests are opt-in
 
 **Decision:** All implementation work should be performed directly in the `main` working

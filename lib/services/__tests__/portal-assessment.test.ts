@@ -50,7 +50,9 @@ const schema: QuestionsSchema = {
 describe("portal assessment answering (integration)", () => {
   const workspaceId = new Types.ObjectId();
   const vendorId = new Types.ObjectId();
+  const spocId = new Types.ObjectId();
   const otherVendorId = new Types.ObjectId();
+  const otherSpocId = new Types.ObjectId();
   const engagementId = new Types.ObjectId();
   const templateId = new Types.ObjectId();
 
@@ -72,9 +74,11 @@ describe("portal assessment answering (integration)", () => {
   const session = () => ({
     vendorId: vendorId.toString(),
     workspaceId: workspaceId.toString(),
+    spocId: spocId.toString(),
   });
   const otherVendorSession = () => ({
     vendorId: otherVendorId.toString(),
+    spocId: otherSpocId.toString(),
     workspaceId: workspaceId.toString(),
   });
 

@@ -8,33 +8,50 @@
 
 ## Current state (as of 2026-08-19)
 
-- **Assessment workflow revamp in progress — Stage 1 of 5 done.** Six defects/gaps were
-  reported against the shipped assessment flow (no vendor evidence upload; no per-vendor
-  questionnaire tailoring; a thin assessment history; single-SPOC vendors; no explicit send
-  step; no per-question compliance verdict). Planned across five stages in
-  `docs/ASSESSMENT-WORKFLOW-PLAN.md` (decisions D1–D8, `DECISIONS.md` 040) before any code.
-  **Stage 1 — evidence upload on every question — is done and verified**: the render/upload
-  gate that keyed on a template's `evidence` object is relaxed (the real 130-question seeded
-  questionnaire never set one, so the control was invisible on all of them); evidence
-  deletion was added (no delete path existed before). `npm run verify` all green (209/209
-  tests), plus a real-HTTP-driven manual walkthrough against a disposable fixture assessment
-  proving upload/download/delete and the unchanged required-evidence submit blocker. See
-  `docs/features/assessment-workflow-stage-1-evidence-upload.md`, `DECISIONS.md` 041.
-- **`npm run test:e2e` could not be run this session** — this sandbox's TLS interception
-  blocks Playwright's Chromium binary download (`self-signed certificate in certificate
-chain`), unrelated to the code change (`@playwright/test` itself was also missing from
-  `node_modules` at session start; `npm install` fixed that half). A session with real
-  network access should run `npx playwright install chromium && npm run test:e2e` to get
-  the browser gate green again before this work is considered fully proven.
-- **Two local git commits exist that are not yet pushed to `origin/main`**: the planning
-  docs commit (`2b72d13`) and Stage 1's implementation commit (below). This session has no
-  GitHub credentials available (`git push` fails with "could not read Username" — no
-  `gh` CLI, no stored credential helper entry) — push manually when convenient.
-- **Next up: Stage 2 — multiple Vendor SPOCs.** ⚠ Auth-touching (`CONSTRAINTS.md` #2) — its
-  own `ROLLBACK.md` Active plan is required before starting, replacing `vendor.spoc` (single
-  embedded object) with `vendor.spocs[]` and touching OTP login resolution
-  (`lib/auth/otp-challenge.ts`), the portal session payload (`spocId` added), and every
-  reader of the legacy field (enumerated in the plan). Stages 3–5 depend on it.
+- **Assessment workflow revamp in progress — Stages 1–2 of 5 done, picking up on a different
+  machine/account next.** Six defects/gaps were reported against the shipped assessment
+  flow (no vendor evidence upload; no per-vendor questionnaire tailoring; a thin assessment
+  history; single-SPOC vendors; no explicit send step; no per-question compliance verdict).
+  Planned across five stages in `docs/ASSESSMENT-WORKFLOW-PLAN.md` (decisions D1–D8,
+  `DECISIONS.md` 040) before any code — **read that plan file first**, then this entry, then
+  the two feature traces below, before touching Stage 3.
+  - **Stage 1 — evidence upload on every question — done.** The render/upload gate keyed on
+    a template's `evidence` object is relaxed (the real 130-question seeded questionnaire
+    never set one, so the control was invisible on all of them); evidence deletion was added
+    (no delete path existed before). See
+    `docs/features/assessment-workflow-stage-1-evidence-upload.md`, `DECISIONS.md` 041.
+  - **Stage 2 — multiple Vendor SPOCs — done.** ⚠ Was auth-touching.
+    `vendor.spocs[]` (additive) replaces the single embedded `spoc` as what OTP login,
+    CAP-escalation contact, and (from Stage 4) questionnaire recipients resolve against; the
+    legacy field is kept, unread by anything new. Portal session payload gained a required
+    `spocId`. A real Mongoose 9 bug was found and fixed during verification — `updateOne()`
+    with an aggregation-pipeline array now needs `{updatePipeline: true}` explicitly; a prior
+    Mongoose major didn't require that — see
+    `docs/features/assessment-workflow-stage-2-multi-spoc.md` §7, `DECISIONS.md` 042. Ran the
+    real backfill migration (`npm run migrate:vendor-spocs`) against real pre-existing dev
+    data, not just fixtures.
+  - **Both stages verified: `npm run verify` green (212/212 tests, format/lint/typecheck/
+    build clean) plus extensive real-HTTP-request walkthroughs** — see each trace's §9 for
+    exact commands and output. Two transient test failures were hit, diagnosed, and either
+    fixed (a Stage-2 test fixture genuinely needed `spocs[]` added) or confirmed as a
+    pre-existing cross-file local-fs storage race unrelated to this work (reproduces
+    intermittently across the whole suite, never in isolation).
+- **`npm run test:e2e` could not be run in this session's sandbox** — TLS interception blocks
+  Playwright's Chromium binary download (`self-signed certificate in certificate chain`),
+  unrelated to the code changes. `npx playwright install chromium && npm run test:e2e` should
+  be run for real before this work is considered fully proven end to end.
+- **Local git commits exist that are not yet pushed to `origin/main`** (see the exact SHAs in
+  `git log`) — this session has no GitHub credentials available (`git push` fails with
+  "could not read Username" — no `gh` CLI, no stored credential helper entry for
+  `github.com`). **Push manually, or from whichever machine/account continues this work.**
+- **Next up: Stage 3 — draft assessments and per-vendor checklist editing.** Not
+  auth-touching. Depends on nothing from Stage 1 or 2. `assignAssessment()` currently sets
+  `status: "sent"` directly — Stage 3 makes it `"draft"` first and adds
+  `AssessmentRepository.updateDraftSnapshot()` (schema-immutability-by-query-filter, same
+  mechanism as `TemplateRepository.updateDraft()`) plus a checklist-editing UI that reuses
+  the template builder's `hydrateSchema()`/`serializeSchema()`/`priorControlIds()` rather
+  than forking them. See `ASSESSMENT-WORKFLOW-PLAN.md` Stage 3 for the full file list. Stages
+  4–5 depend on both Stage 2 (done) and Stage 3 (not started).
 
 - **Browser E2E and portal reliability hardening added (2026-08-18).** Playwright now runs
   desktop Chromium and a Pixel 7 viewport against a real Next.js server. The read-only suite

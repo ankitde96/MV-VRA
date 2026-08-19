@@ -93,24 +93,28 @@ Indexes: `{ email: 1 }` unique · `{ 'memberships.workspace_id': 1 }`
 
 ### `vendors`
 
-| Field                       | Type     | Notes                                                        |
-| --------------------------- | -------- | ------------------------------------------------------------ |
-| `_id`                       | ObjectId |                                                              |
-| `workspace_id`              | ObjectId |                                                              |
-| `legal_name`                | string   |                                                              |
-| `domain`                    | string   | primary web domain; the join key for cross-workspace sharing |
-| `spoc`                      | subdoc   | `{ spoc_name, spoc_email, spoc_phone }`                      |
-| `inherent_risk_tier`        | enum?    | `1` \| `2` \| `3` \| **`null`** — see §4                     |
-| `lifecycle_status`          | enum     | `prospective` \| `active` \| `offboarding` \| `terminated`   |
-| `created_at` / `updated_at` | Date     |                                                              |
+| Field                       | Type     | Notes                                                                                                                                                                                                                            |
+| --------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `_id`                       | ObjectId |                                                                                                                                                                                                                                  |
+| `workspace_id`              | ObjectId |                                                                                                                                                                                                                                  |
+| `legal_name`                | string   |                                                                                                                                                                                                                                  |
+| `domain`                    | string   | primary web domain; the join key for cross-workspace sharing                                                                                                                                                                     |
+| `spoc`                      | subdoc   | legacy single SPOC, `{ spoc_name, spoc_email, spoc_phone }` — **read by nothing since ASSESSMENT-WORKFLOW-PLAN.md Stage 2**; kept in place, not deleted (`CONSTRAINTS.md` #3)                                                    |
+| `spocs`                     | subdoc[] | `{ _id, name, email, phone, is_primary, status: 'active'\|'inactive' }[]` — the real source of truth for OTP login and CAP/recipient contact since Stage 2. Exactly one `is_primary: true` among the active entries at any time. |
+| `inherent_risk_tier`        | enum?    | `1` \| `2` \| `3` \| **`null`** — see §4                                                                                                                                                                                         |
+| `lifecycle_status`          | enum     | `prospective` \| `active` \| `offboarding` \| `terminated`                                                                                                                                                                       |
+| `created_at` / `updated_at` | Date     |                                                                                                                                                                                                                                  |
 
 Indexes:
 `{ workspace_id: 1, legal_name: 1 }` ·
 `{ workspace_id: 1, domain: 1 }` unique ·
 `{ workspace_id: 1, inherent_risk_tier: 1, lifecycle_status: 1 }` (inventory filters) ·
-`{ 'spoc.spoc_email': 1 }` — **not** workspace-prefixed, because OTP login resolves an email
-before any workspace is known. This is the one deliberate exception, and it is why the OTP
-lookup must return a constant response regardless of match (`FLOW.md` F2).
+`{ 'spoc.spoc_email': 1 }` — legacy, **not** workspace-prefixed, because OTP login used to
+resolve an email before any workspace is known; kept until the legacy field is dropped ·
+`{ 'spocs.email': 1 }` — the same deliberate exception, for the field OTP login actually
+resolves against now. This is why the OTP lookup must return a constant response regardless
+of match (`FLOW.md` F2), and why an `inactive` `spocs[]` entry is treated identically to no
+match at all.
 
 ---
 
@@ -235,15 +239,16 @@ split them out — not before.
 
 ### `otp_challenges`
 
-| Field                       | Type   | Notes                                                                |
-| --------------------------- | ------ | -------------------------------------------------------------------- |
-| `email`                     | string |                                                                      |
-| `vendor_id`, `workspace_id` |        | resolved at issue time, never client-supplied                        |
-| `code_hash`                 | string | HMAC-SHA256 of the code with a server secret, constant-time compared |
-| `expires_at`                | Date   | **TTL index**                                                        |
-| `attempts`                  | int    | capped                                                               |
-| `consumed_at`               | Date?  | set on success — single use, no replay                               |
-| `request_ip`                | string |                                                                      |
+| Field                       | Type      | Notes                                                                                                                                                                                                                                                                             |
+| --------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `email`                     | string    |                                                                                                                                                                                                                                                                                   |
+| `vendor_id`, `workspace_id` |           | resolved at issue time, never client-supplied                                                                                                                                                                                                                                     |
+| `spoc_id`                   | ObjectId? | ASSESSMENT-WORKFLOW-PLAN.md Stage 2 — the matched `spocs[]` entry, so verify-time can scope the portal session to a SPOC, not just a vendor. Re-checked as still `active` at verify time, not trusted from issue time. Nullable for a challenge issued before this field existed. |
+| `code_hash`                 | string    | HMAC-SHA256 of the code with a server secret, constant-time compared                                                                                                                                                                                                              |
+| `expires_at`                | Date      | **TTL index**                                                                                                                                                                                                                                                                     |
+| `attempts`                  | int       | capped                                                                                                                                                                                                                                                                            |
+| `consumed_at`               | Date?     | set on success — single use, no replay                                                                                                                                                                                                                                            |
+| `request_ip`                | string    |                                                                                                                                                                                                                                                                                   |
 
 Indexes: `{ expires_at: 1 }` with `expireAfterSeconds: 0` · `{ email: 1, created_at: -1 }`
 

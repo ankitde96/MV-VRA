@@ -14,6 +14,9 @@ export interface VendorRow {
   legal_name: string;
   domain: string;
   spoc_email: string;
+  /** ASSESSMENT-WORKFLOW-PLAN.md Stage 2 — count of active spocs[] entries; drives the
+   * "+N" chip next to the primary email. */
+  spoc_count: number;
   business_unit: string;
   tier: number | null;
   engagement_status: string | null;
@@ -29,7 +32,20 @@ const columns: ColumnDef<VendorRow>[] = [
     ),
   },
   { accessorKey: "domain", header: "Domain" },
-  { accessorKey: "spoc_email", header: "SPOC" },
+  {
+    accessorKey: "spoc_email",
+    header: "SPOC",
+    cell: ({ row }) => (
+      <span>
+        {row.original.spoc_email}
+        {row.original.spoc_count > 1 ? (
+          <span className="text-muted-foreground ml-1.5 text-xs">
+            +{row.original.spoc_count - 1}
+          </span>
+        ) : null}
+      </span>
+    ),
+  },
   { accessorKey: "business_unit", header: "Business unit" },
   {
     accessorKey: "tier",

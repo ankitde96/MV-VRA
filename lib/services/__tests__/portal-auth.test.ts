@@ -17,7 +17,20 @@ import { requestOtp, verifyOtp } from "@/lib/services/portal-auth";
 describe("portal OTP auth (integration)", () => {
   const workspaceId = new Types.ObjectId();
 
-  async function createVendor(domain: string, spocEmail: string) {
+  /**
+   * ASSESSMENT-WORKFLOW-PLAN.md Stage 2 — every vendor now needs at least one active
+   * `spocs[]` entry for OTP login to resolve against at all; `extraSpocs` lets a test add
+   * more (a second active one, or an inactive one) without repeating this boilerplate.
+   */
+  async function createVendor(
+    domain: string,
+    spocEmail: string,
+    extraSpocs: Array<{
+      email: string;
+      status?: "active" | "inactive";
+      isPrimary?: boolean;
+    }> = [],
+  ) {
     return Vendor.create({
       workspace_id: workspaceId,
       legal_name: `Vendor ${domain}`,
@@ -27,6 +40,22 @@ describe("portal OTP auth (integration)", () => {
         spoc_email: spocEmail,
         spoc_phone: "+10000000000",
       },
+      spocs: [
+        {
+          name: "Spoc",
+          email: spocEmail,
+          phone: "+10000000000",
+          is_primary: true,
+          status: "active",
+        },
+        ...extraSpocs.map((extra) => ({
+          name: "Spoc",
+          phone: "+10000000000",
+          is_primary: extra.isPrimary ?? false,
+          status: extra.status ?? "active",
+          email: extra.email,
+        })),
+      ],
     });
   }
 
@@ -54,6 +83,82 @@ describe("portal OTP auth (integration)", () => {
     });
     expect(challenge).not.toBeNull();
     expect(challenge?.vendor_id.toString()).toBe(vendor._id.toString());
+    expect(challenge?.spoc_id?.toString()).toBe(
+      vendor.spocs[0]._id!.toString(),
+    );
+  });
+
+  it("resolves an OTP request for a SECOND active SPOC on the same vendor, scoped to that SPOC's own id (ASSESSMENT-WORKFLOW-PLAN.md Stage 2)", async () => {
+    await dbConnect();
+    const vendor = await createVendor(
+      "multi-spoc.example",
+      "primary@multi-spoc.example",
+      [{ email: "secondary@multi-spoc.example" }],
+    );
+    const secondarySpocId = vendor.spocs[1]._id!;
+
+    const { code } = await issueOtpChallenge({
+      email: "secondary@multi-spoc.example",
+      vendorId: vendor._id,
+      spocId: secondarySpocId,
+      workspaceId,
+      requestIp: null,
+    });
+
+    const session = await verifyOtp({
+      email: "secondary@multi-spoc.example",
+      code,
+    });
+    expect(session).toEqual({
+      vendorId: vendor._id.toString(),
+      workspaceId: workspaceId.toString(),
+      spocId: secondarySpocId.toString(),
+    });
+  });
+
+  it("an INACTIVE SPOC's email issues no challenge, with the identical byte-for-byte no-enumeration response (ASSESSMENT-WORKFLOW-PLAN.md Stage 2)", async () => {
+    await dbConnect();
+    await createVendor(
+      "inactive-spoc.example",
+      "primary@inactive-spoc.example",
+      [{ email: "gone@inactive-spoc.example", status: "inactive" }],
+    );
+
+    await expect(
+      requestOtp({
+        email: "gone@inactive-spoc.example",
+        requestIp: "127.0.0.1",
+      }),
+    ).resolves.toBeUndefined();
+
+    const challenge = await OtpChallenge.findOne({
+      email: "gone@inactive-spoc.example",
+    });
+    expect(challenge).toBeNull();
+  });
+
+  it("refuses to verify with a valid code once the matched SPOC is deactivated between request and verify", async () => {
+    await dbConnect();
+    const vendor = await createVendor(
+      "deactivated-mid-flow.example",
+      "spoc@deactivated-mid-flow.example",
+    );
+    const { code } = await issueOtpChallenge({
+      email: "spoc@deactivated-mid-flow.example",
+      vendorId: vendor._id,
+      spocId: vendor.spocs[0]._id!,
+      workspaceId,
+      requestIp: null,
+    });
+
+    await Vendor.updateOne(
+      { _id: vendor._id },
+      { $set: { "spocs.0.status": "inactive" } },
+    );
+
+    await expect(
+      verifyOtp({ email: "spoc@deactivated-mid-flow.example", code }),
+    ).rejects.toThrow(UnauthorizedError);
   });
 
   it("resolves without error and writes nothing for an email that matches no vendor (no enumeration)", async () => {
@@ -105,6 +210,7 @@ describe("portal OTP auth (integration)", () => {
     const { code } = await issueOtpChallenge({
       email: "spoc@verify.example",
       vendorId: vendor._id,
+      spocId: vendor.spocs[0]._id,
       workspaceId,
       requestIp: null,
     });
@@ -113,6 +219,7 @@ describe("portal OTP auth (integration)", () => {
     expect(session).toEqual({
       vendorId: vendor._id.toString(),
       workspaceId: workspaceId.toString(),
+      spocId: vendor.spocs[0]._id!.toString(),
     });
 
     const challenge = await OtpChallenge.findOne({
@@ -130,6 +237,7 @@ describe("portal OTP auth (integration)", () => {
     await issueOtpChallenge({
       email: "spoc@wrongcode.example",
       vendorId: vendor._id,
+      spocId: vendor.spocs[0]._id,
       workspaceId,
       requestIp: null,
     });
@@ -153,6 +261,7 @@ describe("portal OTP auth (integration)", () => {
     const { code } = await issueOtpChallenge({
       email: "spoc@lockout.example",
       vendorId: vendor._id,
+      spocId: vendor.spocs[0]._id,
       workspaceId,
       requestIp: null,
     });
@@ -177,6 +286,7 @@ describe("portal OTP auth (integration)", () => {
     const { code, challenge } = await issueOtpChallenge({
       email: "spoc@expired.example",
       vendorId: vendor._id,
+      spocId: vendor.spocs[0]._id,
       workspaceId,
       requestIp: null,
     });
@@ -196,6 +306,7 @@ describe("portal OTP auth (integration)", () => {
     const { code } = await issueOtpChallenge({
       email: "spoc@replay.example",
       vendorId: vendor._id,
+      spocId: vendor.spocs[0]._id,
       workspaceId,
       requestIp: null,
     });

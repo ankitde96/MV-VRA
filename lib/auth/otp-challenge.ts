@@ -10,11 +10,26 @@ import { generateOtpCode, hashOtpCode, OTP_TTL_SECONDS } from "./otp";
  * Not a `TenantRepository` subclass, deliberately — same reasoning as
  * lib/audit/record-event.ts. `DATA-MODEL.md` §2: OTP login resolves an email to a vendor
  * *before* any workspace is known, so there is no `TenantContext` to construct one with
- * yet. `Vendor.findOne({'spoc.spoc_email': ...})` uses the one index in the schema that is
- * deliberately not workspace-prefixed for exactly this reason.
+ * yet.
+ *
+ * ASSESSMENT-WORKFLOW-PLAN.md Stage 2 (D2) — resolves against `spocs[]`, not the legacy
+ * single `spoc` object; only an `active` SPOC can authenticate. Returns the matched SPOC
+ * alongside the vendor so the caller can scope the challenge/session to that one person,
+ * not just the vendor. `{ "spocs.email": ... }` is the one other index in the schema that
+ * is deliberately not workspace-prefixed, for the same reason as the legacy index.
  */
 export async function findVendorBySpocEmail(email: string) {
-  return Vendor.findOne({ "spoc.spoc_email": email.trim().toLowerCase() });
+  const normalized = email.trim().toLowerCase();
+  const vendor = await Vendor.findOne({
+    spocs: { $elemMatch: { email: normalized, status: "active" } },
+  });
+  if (!vendor) return null;
+  const spoc = vendor.spocs.find(
+    (s) => s.email === normalized && s.status === "active",
+  );
+  // Defensive only — the query above already guarantees a match exists.
+  if (!spoc) return null;
+  return { vendor, spocId: spoc._id as Types.ObjectId };
 }
 
 /**
@@ -24,6 +39,7 @@ export async function findVendorBySpocEmail(email: string) {
 export async function issueOtpChallenge(params: {
   email: string;
   vendorId: Types.ObjectId;
+  spocId: Types.ObjectId;
   workspaceId: Types.ObjectId;
   requestIp: string | null;
 }): Promise<{
@@ -36,6 +52,7 @@ export async function issueOtpChallenge(params: {
   const challenge = await OtpChallenge.create({
     email: params.email.trim().toLowerCase(),
     vendor_id: params.vendorId,
+    spoc_id: params.spocId,
     workspace_id: params.workspaceId,
     code_hash: codeHash,
     expires_at: new Date(Date.now() + OTP_TTL_SECONDS * 1000),

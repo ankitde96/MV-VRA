@@ -216,8 +216,18 @@ export default async function VendorDetailPage({
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-foreground text-sm font-semibold">Vendor SPOC</h2>
-        <SpocEditForm vendorId={id} initialSpoc={vendor.spoc} />
+        <h2 className="text-foreground text-sm font-semibold">Vendor SPOCs</h2>
+        <SpocEditForm
+          vendorId={id}
+          initialSpocs={vendor.spocs.map((spoc) => ({
+            id: spoc._id!.toString(),
+            name: spoc.name,
+            email: spoc.email,
+            phone: spoc.phone,
+            is_primary: spoc.is_primary ?? false,
+            status: spoc.status ?? "active",
+          }))}
+        />
       </section>
 
       <section className="space-y-4">

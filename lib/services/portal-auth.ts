@@ -71,21 +71,23 @@ export async function requestOtp(input: {
   }
 
   await dbConnect();
-  const vendor = await findVendorBySpocEmail(normalizedEmail);
-  if (!vendor) {
+  const match = await findVendorBySpocEmail(normalizedEmail);
+  if (!match) {
     await dummyOtpLookupForTiming();
     return;
   }
+  const { vendor, spocId } = match;
 
   const { code } = await issueOtpChallenge({
     email: normalizedEmail,
     vendorId: vendor._id,
+    spocId,
     workspaceId: vendor.workspace_id,
     requestIp: input.requestIp,
   });
 
   await getMailer().send({
-    to: vendor.spoc.spoc_email,
+    to: normalizedEmail,
     subject: "Your MV-VRA verification code",
     text: `Your verification code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore this email.`,
   });
@@ -123,9 +125,12 @@ export async function verifyOtp(input: {
   ) {
     const vendor = await Vendor.findOne({
       _id: DEV_VENDOR_ID,
-      "spoc.spoc_email": DEV_VENDOR_EMAIL,
+      spocs: { $elemMatch: { email: DEV_VENDOR_EMAIL, status: "active" } },
     }).lean();
-    if (vendor) {
+    const spoc = vendor?.spocs.find(
+      (s) => s.email === DEV_VENDOR_EMAIL && s.status === "active",
+    );
+    if (vendor && spoc) {
       await recordAuditEvent({
         workspace_id: vendor.workspace_id,
         actor: { type: "vendor", id: vendor._id, email: DEV_VENDOR_EMAIL },
@@ -136,6 +141,7 @@ export async function verifyOtp(input: {
       return {
         vendorId: vendor._id.toString(),
         workspaceId: vendor.workspace_id.toString(),
+        spocId: spoc._id!.toString(),
       };
     }
   }
@@ -152,6 +158,17 @@ export async function verifyOtp(input: {
     throw new UnauthorizedError("Invalid or expired verification code.");
   }
 
+  // ASSESSMENT-WORKFLOW-PLAN.md Stage 2 — re-verify the matched SPOC is still active at
+  // verify time, not just at request time. A SPOC deactivated between the OTP request and
+  // the code being entered must not be able to complete login with an already-issued code.
+  const vendor = await Vendor.findOne({
+    _id: challenge.vendor_id,
+    spocs: { $elemMatch: { _id: challenge.spoc_id, status: "active" } },
+  }).lean();
+  if (!vendor) {
+    throw new UnauthorizedError("Invalid or expired verification code.");
+  }
+
   await consumeOtpChallenge(challenge._id);
 
   await recordAuditEvent({
@@ -165,5 +182,6 @@ export async function verifyOtp(input: {
   return {
     vendorId: challenge.vendor_id.toString(),
     workspaceId: challenge.workspace_id.toString(),
+    spocId: challenge.spoc_id!.toString(),
   };
 }

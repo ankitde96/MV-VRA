@@ -179,17 +179,43 @@ async function main() {
   );
 
   if (isDevelopment) {
+    const existingDevVendor = await Vendor.findById(DEV_VENDOR_ID).lean();
+    // ASSESSMENT-WORKFLOW-PLAN.md Stage 2 — spocs[] only set on first insert (via
+    // $setOnInsert below), same as every other insert-only fixture field here, so
+    // re-running the seed never clobbers SPOC edits made by hand while developing. A
+    // second SPOC is seeded deliberately (not just one) so local verification can exercise
+    // per-SPOC portal scoping without needing to add one manually first.
+    const shouldSeedSpocs = !existingDevVendor?.spocs?.length;
+    const setFields: Record<string, unknown> = {
+      workspace_id: workspace._id,
+      spoc: {
+        spoc_name: "Demo Vendor SPOC",
+        spoc_email: DEV_VENDOR_EMAIL,
+        spoc_phone: "+91-0000000000",
+      },
+    };
+    if (shouldSeedSpocs) {
+      setFields.spocs = [
+        {
+          name: "Demo Vendor SPOC",
+          email: DEV_VENDOR_EMAIL,
+          phone: "+91-0000000000",
+          is_primary: true,
+          status: "active",
+        },
+        {
+          name: "Demo Vendor Secondary SPOC",
+          email: "vendor2@mv-vra.local",
+          phone: "+91-0000000001",
+          is_primary: false,
+          status: "active",
+        },
+      ];
+    }
     const vendor = await Vendor.findOneAndUpdate(
       { _id: new mongoose.Types.ObjectId(DEV_VENDOR_ID) },
       {
-        $set: {
-          workspace_id: workspace._id,
-          spoc: {
-            spoc_name: "Demo Vendor SPOC",
-            spoc_email: DEV_VENDOR_EMAIL,
-            spoc_phone: "+91-0000000000",
-          },
-        },
+        $set: setFields,
         $setOnInsert: {
           legal_name: "MV-VRA Demo Vendor",
           domain: "vendor.demo.mv-vra.local",

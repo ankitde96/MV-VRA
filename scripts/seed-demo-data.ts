@@ -171,6 +171,17 @@ async function main() {
         spoc_email: `spoc@${spec.domain}`,
         spoc_phone: "+15550100000",
       },
+      // ASSESSMENT-WORKFLOW-PLAN.md Stage 2 — every demo vendor needs at least one active
+      // spocs[] entry or nothing here could ever OTP-log-in as it.
+      spocs: [
+        {
+          name: `${spec.name} SPOC`,
+          email: `spoc@${spec.domain}`,
+          phone: "+15550100000",
+          is_primary: true,
+          status: "active",
+        },
+      ],
       inherent_risk_tier: spec.tier,
       lifecycle_status: "active",
     });

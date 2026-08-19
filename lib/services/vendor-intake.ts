@@ -89,6 +89,20 @@ export async function submitVendorIntake(
           legal_name: input.legal_name,
           domain: input.domain,
           spoc: input.spoc,
+          // ASSESSMENT-WORKFLOW-PLAN.md Stage 2 (D2) — every vendor needs at least one
+          // active spocs[] entry from creation, since that's what OTP login resolves
+          // against now; the legacy `spoc` object above is kept for compatibility but is
+          // never read for that purpose again.
+          spocs: [
+            {
+              _id: new Types.ObjectId(),
+              name: input.spoc.spoc_name,
+              email: input.spoc.spoc_email,
+              phone: input.spoc.spoc_phone,
+              is_primary: true,
+              status: "active",
+            },
+          ],
           business_unit: input.business_unit || null,
           inherent_risk_tier: tiering.status === "tiered" ? tiering.tier : null,
           lifecycle_status: "prospective",

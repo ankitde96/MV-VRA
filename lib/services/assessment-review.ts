@@ -749,7 +749,11 @@ export class AssessmentReviewService {
         let ownerEmail: string | null = null;
         let ownerLabel = "Unknown owner";
         if (task.owner_type === "vendor") {
-          ownerEmail = vendor?.spoc?.spoc_email ?? null;
+          // ASSESSMENT-WORKFLOW-PLAN.md Stage 2 — the primary spocs[] entry, not the
+          // legacy single `spoc` object, is the vendor's CAP-escalation contact now.
+          ownerEmail =
+            vendor?.spocs.find((s) => s.is_primary && s.status === "active")
+              ?.email ?? null;
           ownerLabel = vendor ? `${vendor.legal_name} (SPOC)` : "Vendor SPOC";
         } else {
           const owner = await User.findById(task.owner_ref).lean();

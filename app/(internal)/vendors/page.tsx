@@ -45,11 +45,18 @@ export default async function VendorsPage() {
 
   const rows: VendorRow[] = vendors.map((vendor) => {
     const engagement = latestEngagementByVendor.get(vendor._id.toString());
+    const activeSpocs = vendor.spocs.filter((s) => s.status === "active");
+    // ASSESSMENT-WORKFLOW-PLAN.md Stage 2 — the primary spocs[] entry, falling back to the
+    // legacy `spoc` object only for a vendor that predates this stage and hasn't been
+    // migrated yet (scripts/migrate-vendor-spocs.ts backfills spocs[] for exactly this).
+    const primarySpoc =
+      activeSpocs.find((s) => s.is_primary) ?? activeSpocs[0] ?? null;
     return {
       id: vendor._id.toString(),
       legal_name: vendor.legal_name,
       domain: vendor.domain,
-      spoc_email: vendor.spoc.spoc_email,
+      spoc_email: primarySpoc?.email ?? vendor.spoc.spoc_email,
+      spoc_count: activeSpocs.length,
       business_unit: vendor.business_unit ?? "Unassigned",
       tier: vendor.inherent_risk_tier ?? null,
       engagement_status: engagement?.status ?? null,

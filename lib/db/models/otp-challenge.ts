@@ -16,6 +16,11 @@ const otpChallengeSchema = new Schema(
   {
     email: { type: String, required: true, lowercase: true, trim: true },
     vendor_id: { type: Schema.Types.ObjectId, ref: "Vendor", required: true },
+    // ASSESSMENT-WORKFLOW-PLAN.md Stage 2 — additive, nullable. The specific `spocs[]`
+    // entry that matched at request time, carried through to verify time so the portal
+    // session can be scoped to a SPOC, not just a vendor. Null on any challenge issued
+    // before this field existed; those expire via the TTL index within minutes regardless.
+    spoc_id: { type: Schema.Types.ObjectId, default: null },
     workspace_id: {
       type: Schema.Types.ObjectId,
       ref: "Workspace",

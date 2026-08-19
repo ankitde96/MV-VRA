@@ -49,6 +49,17 @@ describe("AssessmentReviewService (integration)", () => {
         spoc_email: "spoc@review-test.example",
         spoc_phone: "+1",
       },
+      // ASSESSMENT-WORKFLOW-PLAN.md Stage 2 — the vendor-owned CAP escalation email now
+      // reads the primary spocs[] entry, not the legacy `spoc` object above.
+      spocs: [
+        {
+          name: "S Poc",
+          email: "spoc@review-test.example",
+          phone: "+1",
+          is_primary: true,
+          status: "active",
+        },
+      ],
       inherent_risk_tier: 2,
       lifecycle_status: "active",
     });

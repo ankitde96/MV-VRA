@@ -63,6 +63,18 @@ executive-rollup}.test.ts` (all integration, against a real MongoDB) — then cl
 > failure behavior against a real Next.js server. It is intentionally separate from
 > `npm run verify` because it requires seeded development fixtures and browser binaries.
 >
+> **Assessment workflow revamp, Stage 2 (2026-08-19):** Gate 4's vendor-portal block gains
+> multi-SPOC coverage — `lib/services/__tests__/portal-auth.test.ts` now covers a second
+> active SPOC logging in scoped to its own id, an inactive SPOC's OTP request behaving
+> identically to no match (enumeration-safe), and a SPOC deactivated between OTP request
+> and verify being refused at verify time. Verified by both integration test and a real
+> HTTP request that also exercised the admin-facing SPOC management guard rails (primary
+> cannot be deactivated, the last active SPOC cannot be deactivated, make-primary is
+> atomic) and ran the real backfill migration against real pre-existing data. A real
+> Mongoose 9 bug was found and fixed during that verification pass, not by an automated
+> test — see `docs/features/assessment-workflow-stage-2-multi-spoc.md` §7,
+> `DECISIONS.md` 042.
+>
 > **Assessment workflow revamp, Stage 1 (2026-08-19):** Gate 4's evidence-upload item is
 > updated — a question with no `evidence` config now accepts an optional upload (previously
 > refused), and evidence deletion exists for the first time

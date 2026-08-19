@@ -10,6 +10,13 @@ import { env } from "@/lib/env";
 export interface PortalSessionPayload {
   vendorId: string;
   workspaceId: string;
+  /**
+   * ASSESSMENT-WORKFLOW-PLAN.md Stage 2 (D8) — added here, ahead of Stage 4's first
+   * reader, so every auth-touching change in this revamp lives in one stage rather than
+   * two. Set once at OTP-verify time from the matched challenge/dev-bypass SPOC, never
+   * from a request parameter — the same rule `vendorId` already follows.
+   */
+  spocId: string;
 }
 
 interface SignedPortalPayload extends PortalSessionPayload {
@@ -97,10 +104,17 @@ export async function verifyPortalSessionToken(
       return null;
     if (
       typeof parsed.vendorId !== "string" ||
-      typeof parsed.workspaceId !== "string"
+      typeof parsed.workspaceId !== "string" ||
+      typeof parsed.spocId !== "string"
     )
+      // Rejects any token signed before `spocId` existed — a pre-existing portal cookie
+      // simply forces one re-login, which is cheap at this session's 1-hour TTL.
       return null;
-    return { vendorId: parsed.vendorId, workspaceId: parsed.workspaceId };
+    return {
+      vendorId: parsed.vendorId,
+      workspaceId: parsed.workspaceId,
+      spocId: parsed.spocId,
+    };
   } catch {
     return null;
   }

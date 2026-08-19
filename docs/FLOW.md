@@ -57,41 +57,47 @@ into Tier 3. Verified by unit test at both tier boundaries and the unscoreable c
 MongoDB transaction (`lib/services/__tests__/vendor-intake.test.ts`) — see
 `docs/features/phase-3-vendor-intake-and-tiering.md`.
 
-## F2 — Vendor SPOC authentication (external, highest-risk path) ✅ BUILT (Phase 6, 2026-08-14)
+## F2 — Vendor SPOC authentication (external, highest-risk path) ✅ BUILT (Phase 6, 2026-08-14; SPOC-scoped since Stage 2, 2026-08-19)
 
 1. SPOC enters email on the vendor portal login page —
    `components/portal-otp-login-form.tsx` (`app/(portal)/portal/login/page.tsx`) posts to
    `POST /api/portal/auth/otp/request`.
 2. `requestOtp()` (`lib/services/portal-auth.ts`) rate-limits by email and IP
-   (`lib/auth/rate-limit.ts`), then looks up the email against Vendor Profile SPOC
-   subdocuments (`findVendorBySpocEmail()`, `lib/auth/otp-challenge.ts` — the one
-   deliberately non-workspace-prefixed index, `DATA-MODEL.md` §2).
+   (`lib/auth/rate-limit.ts`), then looks up the email against `Vendor.spocs[]`
+   (`findVendorBySpocEmail()`, `lib/auth/otp-challenge.ts` — the one deliberately
+   non-workspace-prefixed index, `DATA-MODEL.md` §2) — **only an `active` entry matches**;
+   an `inactive` SPOC's email behaves identically to an unregistered one.
 3. If matched: OTP generated (`generateOtpCode()`), hashed with `OTP_HMAC_SECRET`
-   (`hashOtpCode()`, `lib/auth/otp.ts`), stored with a 10-minute expiry
-   (`issueOtpChallenge()`), and emailed to the SPOC address only via `lib/mail/` (console
-   transport in dev). If unmatched: a dummy database read of comparable shape
-   (`dummyOtpLookupForTiming()`) runs instead, and the route returns the exact same
-   `{ ok: true }` body either way.
+   (`hashOtpCode()`, `lib/auth/otp.ts`), stored with a 10-minute expiry alongside the
+   matched SPOC's own id (`issueOtpChallenge()`, `spoc_id`), and emailed to that SPOC's
+   address via `lib/mail/` (console transport in dev). If unmatched (including an inactive
+   SPOC): a dummy database read of comparable shape (`dummyOtpLookupForTiming()`) runs
+   instead, and the route returns the exact same `{ ok: true }` body either way.
 4. SPOC submits the code → `POST /api/portal/auth/otp/verify` →`verifyOtp()` re-checks
-   `expires_at` explicitly (not just the TTL sweep), enforces the 5-attempt limit, and
-   compares the hash in constant time (`constantTimeEqual()`).
+   `expires_at` explicitly (not just the TTL sweep), enforces the 5-attempt limit, compares
+   the hash in constant time (`constantTimeEqual()`), and **re-verifies the matched SPOC is
+   still `active`** — a SPOC deactivated between request and verify cannot complete login
+   with an already-issued code.
 5. On success, the challenge is consumed (`consumeOtpChallenge()` — single-use, no replay)
-   and a session is signed scoped to that **one** `vendor_id` + `workspace_id`
+   and a session is signed scoped to that **one** `vendor_id` + `workspace_id` + `spocId`
    (`createPortalSessionToken()`, `lib/auth/portal-session.ts` — a structurally separate
-   module from the internal session, not a shared signer).
+   module from the internal session, not a shared signer). `spocId` is not read by anything
+   yet — `FLOW.md` F3 step 1's Stage 4 (recipient scoping) is its first reader.
 6. Every subsequent portal request re-derives the vendor scope from the session cookie
    (`getCurrentPortalSession()`, `lib/auth/current-portal-session.ts`), never from a URL or
    body parameter. `proxy.ts`'s portal branch and the internal branch share no code path.
 
 Gaps resolved: (a) email enumeration — verified by real HTTP request, the response body
 for a registered vs. unregistered email is byte-identical (best-effort timing mitigation
-only, `DECISIONS.md` 019 — not a cryptographic constant-time guarantee); (b) vendor scope
-is set once at OTP-verify time from the challenge document and re-derived from the session
-on every read, never from a client parameter — verified with two vendors coexisting, one
-session's assessment list unaffected by the other's; (c) OTP replay — verified, a consumed
-code is rejected on reuse. All verified by integration test
+only, `DECISIONS.md` 019 — not a cryptographic constant-time guarantee); this now also
+covers a deactivated SPOC's email, verified identically; (b) vendor scope is set once at
+OTP-verify time from the challenge document and re-derived from the session on every read,
+never from a client parameter — verified with two vendors coexisting, one session's
+assessment list unaffected by the other's; (c) OTP replay — verified, a consumed code is
+rejected on reuse. All verified by integration test
 (`lib/services/__tests__/portal-auth.test.ts`) and by real HTTP request — see
-`docs/features/phase-6-assessment-assignment-and-otp-portal-auth.md`.
+`docs/features/phase-6-assessment-assignment-and-otp-portal-auth.md` and
+`docs/features/assessment-workflow-stage-2-multi-spoc.md`.
 
 ## F3 — Questionnaire assignment → submission ✅ BUILT end to end (Phases 5–7, 2026-08-14)
 
