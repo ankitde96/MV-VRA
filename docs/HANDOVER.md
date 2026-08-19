@@ -8,6 +8,14 @@
 
 ## Current state (as of 2026-08-20)
 
+- **Reviewer-experience upgrade planned, not started:** `docs/REVIEWER-EXPERIENCE-PLAN.md`
+  maps eight dependency-ordered stages covering bulk review tools, evidence review, completion
+  workflow + PDF/CSV export, demo data v2, reviewer productivity, risk/remediation integration,
+  and reporting. **No code written.** Read §2.1 first — it records a suspected defect: internal
+  reviewers' evidence links point at a portal-session-only route
+  (`lib/services/assessment-review.ts:299`), so evidence may not be downloadable from the review
+  page at all. Confirm in a browser before building Stage 4.
+
 - **Future ideas now have one canonical holding area:** `docs/FUTURE-IDEAS.md` consolidates
   operational hardening, the eight explicitly parked product areas, and still-relevant
   deferred items from the plans and feature traces. Entries are ideas, not approved work.
