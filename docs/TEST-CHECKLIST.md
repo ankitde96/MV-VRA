@@ -376,6 +376,59 @@ than a crash:
       integration test and real HTTP request with an evidence-requiring suppressed
       question)
 
+### Assessment workflow Stage 3 — draft checklist gates
+
+- [x] **Draft assignment semantics (focused integration):** assignment stores `draft`,
+      `template_name`, a deep-cloned snapshot and null `due_date`, while leaving the
+      engagement unchanged.
+- [x] **Snapshot immutability boundary (focused integration):** editing a sent assessment is
+      refused; invalid and forward-referencing schemas fail before persistence; tailoring
+      does not modify the published template; a second assessment starts from the clean
+      published schema.
+- [x] **Concurrent editor protection (focused integration):** a stale `expected_updated_at`
+      cannot overwrite a newer checklist save.
+- [x] **Portal draft concealment (targeted integration):** the portal service excludes a
+      draft from its list and returns `NotFoundError` for direct access.
+- [x] **Full `npm run verify`:** format, lint, typecheck, 218/218 tests, and production
+      build passed on 2026-08-19. The first two attempts exposed the pre-existing shared
+      `.storage-local` cleanup race; cleanup is now workspace-scoped and the clean rerun
+      passed.
+- [x] **Real HTTP workflow:** authenticated assignment returned `201`/`draft`; the assessment
+      stayed absent from the portal list and its direct page rendered the not-found boundary;
+      add/edit/delete checklist PATCHes returned `200`; the published-template SHA-256 stayed
+      `14739bec12dabcb81930e6cae8e77ca477760920fafa17c6f10fc128eb08e5ea`; a second
+      assessment matched the published snapshot; and a PATCH after transitioning the first
+      fixture to `sent` returned `403`. Cleanup removed two assessments, four audit events,
+      and the disposable engagement.
+- [x] **Playwright desktop + mobile:** `npm run test:e2e` passed 17 tests in 1.4 minutes on
+      desktop Chromium and Pixel 7. The one skip is intentional: the new checklist-editor
+      add/edit/save/delete/overflow journey runs only in the mobile project.
+
+Actual Stage 3 focused output obtained on 2026-08-19:
+
+```text
+npm run typecheck
+Generating route types...
+✓ Types generated successfully
+
+npm test -- --run lib/services/__tests__/assessment-assignment.test.ts
+Test Files  1 passed (1)
+Tests  10 passed (10)
+
+npx vitest run lib/services/__tests__/portal-assessment.test.ts -t "conceals draft" --reporter=verbose
+Test Files  1 passed (1)
+Tests  1 passed | 17 skipped (18)
+
+npm run lint
+eslint
+
+git diff --check
+(exit 0; no output)
+
+npm run test:e2e
+17 passed, 1 skipped (1.4m)
+```
+
 ## Gate 3 — Build
 
 ```bash

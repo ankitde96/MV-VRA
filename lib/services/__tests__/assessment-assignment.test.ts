@@ -7,7 +7,10 @@ import { Engagement } from "@/lib/db/models/engagement";
 import { Assessment } from "@/lib/db/models/assessment";
 import { QuestionnaireTemplate } from "@/lib/db/models/questionnaire-template";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
-import { assignAssessment } from "@/lib/services/assessment-assignment";
+import {
+  assignAssessment,
+  updateAssessmentChecklist,
+} from "@/lib/services/assessment-assignment";
 import type { QuestionsSchema } from "@/lib/questionnaire/schema";
 
 const schema: QuestionsSchema = {
@@ -101,7 +104,7 @@ describe("assignAssessment (integration)", () => {
     await mongoose.disconnect();
   });
 
-  it("assigns a published template, snapshotting its schema and bumping the engagement to in_assessment", async () => {
+  it("assigns a published template as a draft without starting the response SLA", async () => {
     await dbConnect();
     const vendor = await createVendor(workspaceId, "assign.example");
     const engagement = await createEngagement(workspaceId, vendor._id);
@@ -121,22 +124,256 @@ describe("assignAssessment (integration)", () => {
       },
     );
 
-    expect(assessment.status).toBe("sent");
+    expect(assessment.status).toBe("draft");
+    expect(assessment.template_name).toBe("Baseline");
     expect(assessment.template_version).toBe(1);
     expect(assessment.template_snapshot).toEqual(schema);
 
-    // UI Revamp Round 2 (DECISIONS.md 029) — due_date defaults from
-    // Workspace.settings.assessment_response_sla_days (21 days when no Workspace document
-    // exists, as here) so the "on-time completion" / "portal stall" KRIs have a baseline
-    // from day one, not only once a real Workspace document with custom settings exists.
-    expect(assessment.due_date).not.toBeNull();
-    const expectedDueDate = new Date(
-      assessment.assigned_at!.getTime() + 21 * 24 * 60 * 60 * 1000,
-    );
-    expect(assessment.due_date!.getTime()).toBe(expectedDueDate.getTime());
+    expect(assessment.due_date).toBeNull();
 
     const storedEngagement = await Engagement.findById(engagement._id);
-    expect(storedEngagement?.status).toBe("in_assessment");
+    expect(storedEngagement?.status).toBe("tiered");
+  });
+
+  it("edits only the assessment snapshot while it is draft", async () => {
+    await dbConnect();
+    const vendor = await createVendor(workspaceId, "snapshot-edit.example");
+    const engagement = await createEngagement(workspaceId, vendor._id);
+    const template = await createTemplate(
+      workspaceId,
+      "published",
+      "snapshot-edit",
+    );
+    const assessment = await assignAssessment(
+      { workspaceId },
+      { userId: actorId.toString() },
+      {
+        vendorId: vendor._id.toString(),
+        engagementId: engagement._id.toString(),
+        templateId: template._id.toString(),
+      },
+    );
+    const tailored: QuestionsSchema = {
+      ...schema,
+      sections: [
+        {
+          ...schema.sections[0]!,
+          questions: [
+            ...schema.sections[0]!.questions,
+            {
+              control_id: "Q2",
+              text: "Tailored?",
+              type: "text",
+              required: false,
+            },
+          ],
+        },
+      ],
+    };
+
+    await updateAssessmentChecklist(
+      { workspaceId },
+      { userId: actorId.toString() },
+      assessment._id.toString(),
+      tailored,
+      assessment.updated_at,
+    );
+
+    const [storedAssessment, storedTemplate] = await Promise.all([
+      Assessment.findById(assessment._id).lean(),
+      QuestionnaireTemplate.findById(template._id).lean(),
+    ]);
+    expect(storedAssessment?.template_snapshot).toEqual(tailored);
+    expect(storedTemplate?.questions_schema).toEqual(schema);
+  });
+
+  it("refuses to edit a snapshot after the assessment is sent", async () => {
+    await dbConnect();
+    const vendor = await createVendor(workspaceId, "snapshot-sent.example");
+    const engagement = await createEngagement(workspaceId, vendor._id);
+    const template = await createTemplate(
+      workspaceId,
+      "published",
+      "snapshot-sent",
+    );
+    const assessment = await assignAssessment(
+      { workspaceId },
+      { userId: actorId.toString() },
+      {
+        vendorId: vendor._id.toString(),
+        engagementId: engagement._id.toString(),
+        templateId: template._id.toString(),
+      },
+    );
+    await Assessment.updateOne(
+      { _id: assessment._id },
+      { $set: { status: "sent" } },
+    );
+
+    await expect(
+      updateAssessmentChecklist(
+        { workspaceId },
+        { userId: actorId.toString() },
+        assessment._id.toString(),
+        schema,
+        assessment.updated_at,
+      ),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it("rejects invalid and forward-referencing schemas before changing the snapshot", async () => {
+    await dbConnect();
+    const vendor = await createVendor(workspaceId, "snapshot-invalid.example");
+    const engagement = await createEngagement(workspaceId, vendor._id);
+    const template = await createTemplate(
+      workspaceId,
+      "published",
+      "snapshot-invalid",
+    );
+    const assessment = await assignAssessment(
+      { workspaceId },
+      { userId: actorId.toString() },
+      {
+        vendorId: vendor._id.toString(),
+        engagementId: engagement._id.toString(),
+        templateId: template._id.toString(),
+      },
+    );
+    const forwardReference: QuestionsSchema = {
+      schema_format_version: 1,
+      sections: [
+        {
+          id: "sec",
+          title: "Section",
+          questions: [
+            {
+              control_id: "Q1",
+              text: "First?",
+              type: "text",
+              required: true,
+              show_if: {
+                all: [{ control_id: "Q2", op: "eq", value: "yes" }],
+              },
+            },
+            {
+              control_id: "Q2",
+              text: "Second?",
+              type: "text",
+              required: true,
+            },
+          ],
+        },
+      ],
+    };
+
+    await expect(
+      updateAssessmentChecklist(
+        { workspaceId },
+        { userId: actorId.toString() },
+        assessment._id.toString(),
+        { schema_format_version: 1, sections: [] },
+        assessment.updated_at,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      updateAssessmentChecklist(
+        { workspaceId },
+        { userId: actorId.toString() },
+        assessment._id.toString(),
+        forwardReference,
+        assessment.updated_at,
+      ),
+    ).rejects.toThrow(ValidationError);
+
+    const stored = await Assessment.findById(assessment._id).lean();
+    expect(stored?.template_snapshot).toEqual(schema);
+  });
+
+  it("starts a second assessment from the clean published template", async () => {
+    await dbConnect();
+    const vendor = await createVendor(workspaceId, "snapshot-second.example");
+    const engagement = await createEngagement(workspaceId, vendor._id);
+    const template = await createTemplate(
+      workspaceId,
+      "published",
+      "snapshot-second",
+    );
+    const first = await assignAssessment(
+      { workspaceId },
+      { userId: actorId.toString() },
+      {
+        vendorId: vendor._id.toString(),
+        engagementId: engagement._id.toString(),
+        templateId: template._id.toString(),
+      },
+    );
+    const tailored = structuredClone(schema);
+    tailored.sections[0]!.questions[0]!.text = "Vendor-specific wording";
+    await updateAssessmentChecklist(
+      { workspaceId },
+      { userId: actorId.toString() },
+      first._id.toString(),
+      tailored,
+      first.updated_at,
+    );
+
+    const second = await assignAssessment(
+      { workspaceId },
+      { userId: actorId.toString() },
+      {
+        vendorId: vendor._id.toString(),
+        engagementId: engagement._id.toString(),
+        templateId: template._id.toString(),
+      },
+    );
+    expect(second.template_snapshot).toEqual(schema);
+  });
+
+  it("refuses a stale concurrent checklist save instead of overwriting newer work", async () => {
+    await dbConnect();
+    const vendor = await createVendor(
+      workspaceId,
+      "snapshot-concurrent.example",
+    );
+    const engagement = await createEngagement(workspaceId, vendor._id);
+    const template = await createTemplate(
+      workspaceId,
+      "published",
+      "snapshot-concurrent",
+    );
+    const assessment = await assignAssessment(
+      { workspaceId },
+      { userId: actorId.toString() },
+      {
+        vendorId: vendor._id.toString(),
+        engagementId: engagement._id.toString(),
+        templateId: template._id.toString(),
+      },
+    );
+    const firstEdit = structuredClone(schema);
+    firstEdit.sections[0]!.questions[0]!.text = "First editor";
+    const staleEdit = structuredClone(schema);
+    staleEdit.sections[0]!.questions[0]!.text = "Stale editor";
+
+    await updateAssessmentChecklist(
+      { workspaceId },
+      { userId: actorId.toString() },
+      assessment._id.toString(),
+      firstEdit,
+      assessment.updated_at,
+    );
+    await expect(
+      updateAssessmentChecklist(
+        { workspaceId },
+        { userId: actorId.toString() },
+        assessment._id.toString(),
+        staleEdit,
+        assessment.updated_at,
+      ),
+    ).rejects.toThrow(/changed in another session/);
+
+    const stored = await Assessment.findById(assessment._id).lean();
+    expect(stored?.template_snapshot).toEqual(firstEdit);
   });
 
   it("rejects assigning a draft template", async () => {

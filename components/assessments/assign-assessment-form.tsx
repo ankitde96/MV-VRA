@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { AssessmentChecklistEditor } from "@/components/assessments/assessment-checklist-editor";
+import type { QuestionsSchema } from "@/lib/questionnaire/schema";
 import {
   Select,
   SelectContent,
@@ -27,7 +29,14 @@ export interface EngagementRow {
   id: string;
   businessUnit: string;
   status: string;
-  assessments: { id: string; status: string; templateVersion: number }[];
+  assessments: {
+    id: string;
+    status: string;
+    templateVersion: number;
+    templateName: string;
+    templateSnapshot: QuestionsSchema;
+    updatedAt: string;
+  }[];
 }
 
 export interface PublishedTemplateOption {
@@ -93,7 +102,7 @@ export function AssignAssessmentForm({
       <ul className="divide-border divide-y rounded-md border">
         {engagements.map((engagement) => (
           <li key={engagement.id} className="space-y-3 px-4 py-3 text-sm">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <span className="font-medium">{engagement.businessUnit}</span>
               <span className="text-muted-foreground">{engagement.status}</span>
             </div>
@@ -103,10 +112,10 @@ export function AssignAssessmentForm({
                 {engagement.assessments.map((assessment) => (
                   <li
                     key={assessment.id}
-                    className="text-muted-foreground flex items-center justify-between text-xs"
+                    className="text-muted-foreground flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between"
                   >
                     <span>
-                      Assessment v{assessment.templateVersion} —{" "}
+                      {assessment.templateName} v{assessment.templateVersion} —{" "}
                       {STATUS_LABEL[assessment.status] ?? assessment.status}
                     </span>
                     {["submitted", "under_review", "completed"].includes(
@@ -124,12 +133,23 @@ export function AssignAssessmentForm({
               </ul>
             ) : null}
 
+            {engagement.assessments
+              .filter((assessment) => assessment.status === "draft")
+              .map((assessment) => (
+                <AssessmentChecklistEditor
+                  key={assessment.id}
+                  assessmentId={assessment.id}
+                  initialSchema={assessment.templateSnapshot}
+                  initialUpdatedAt={assessment.updatedAt}
+                />
+              ))}
+
             {publishedTemplates.length === 0 ? (
               <p className="text-muted-foreground text-xs italic">
                 No published templates available to assign yet.
               </p>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <Select
                   value={selectedTemplateByEngagement[engagement.id] ?? ""}
                   onValueChange={(value) =>
@@ -139,7 +159,7 @@ export function AssignAssessmentForm({
                     }))
                   }
                 >
-                  <SelectTrigger className="w-64">
+                  <SelectTrigger className="w-full sm:w-64">
                     <SelectValue placeholder="Select a template…" />
                   </SelectTrigger>
                   <SelectContent>

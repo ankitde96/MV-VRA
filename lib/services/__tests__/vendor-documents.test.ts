@@ -43,10 +43,14 @@ describe("vendor documents (integration)", () => {
 
   afterAll(async () => {
     await mongoose.disconnect();
-    await rm(resolve(process.cwd(), ".storage-local"), {
-      recursive: true,
-      force: true,
-    });
+    await Promise.all(
+      [workspaceA, workspaceB].map((workspaceId) =>
+        rm(resolve(process.cwd(), ".storage-local", workspaceId.toString()), {
+          recursive: true,
+          force: true,
+        }),
+      ),
+    );
   });
 
   it("rejects a disallowed MIME type before touching storage or the database", async () => {

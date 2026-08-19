@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { ClipboardList, ChevronRight } from "lucide-react";
 import { getCurrentPortalSession } from "@/lib/auth/current-portal-session";
-import { dbConnect } from "@/lib/db/connect";
-import { AssessmentRepository } from "@/lib/repositories/assessment-repository";
+import { listVendorAssessments } from "@/lib/services/portal-assessment";
 import { PortalLogoutButton } from "@/components/portal-logout-button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -34,14 +33,7 @@ export default async function PortalHomePage() {
   const session = await getCurrentPortalSession();
   if (!session) return null;
 
-  await dbConnect();
-  const assessmentRepo = new AssessmentRepository({
-    workspaceId: session.workspaceId,
-  });
-  const assessments = await assessmentRepo
-    .find({ vendor_id: session.vendorId })
-    .sort({ assigned_at: -1 })
-    .lean();
+  const assessments = await listVendorAssessments(session);
 
   return (
     <div className="space-y-6">

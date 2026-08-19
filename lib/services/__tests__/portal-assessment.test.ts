@@ -9,7 +9,9 @@ import { Response } from "@/lib/db/models/response";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import {
   deleteEvidence,
+  getAssessmentForAnswering,
   getEvidenceFile,
+  listVendorAssessments,
   saveResponse,
   submitAssessment,
   uploadEvidence,
@@ -89,7 +91,7 @@ describe("portal assessment answering (integration)", () => {
 
   afterAll(async () => {
     await mongoose.disconnect();
-    await rm(resolve(process.cwd(), ".storage-local"), {
+    await rm(resolve(process.cwd(), ".storage-local", workspaceId.toString()), {
       recursive: true,
       force: true,
     });
@@ -123,6 +125,20 @@ describe("portal assessment answering (integration)", () => {
     const assessment = await createAssessment();
     await expect(
       saveResponse(otherVendorSession(), assessment._id.toString(), "Q1", "x"),
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it("conceals draft assessments from both the portal list and direct access", async () => {
+    await dbConnect();
+    const draft = await createAssessment("draft");
+    const sent = await createAssessment("sent");
+
+    const listed = await listVendorAssessments(session());
+    expect(listed.map((item) => item._id.toString())).toEqual([
+      sent._id.toString(),
+    ]);
+    await expect(
+      getAssessmentForAnswering(session(), draft._id.toString()),
     ).rejects.toThrow(NotFoundError);
   });
 

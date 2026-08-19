@@ -8,7 +8,19 @@
 
 ## Current state (as of 2026-08-19)
 
-- **Assessment workflow revamp in progress — Stages 1–2 of 5 done, picking up on a different
+- **Assessment workflow revamp in progress — Stages 1–3 of 5 done.** Stage 3 now creates
+  draft assessments, supports
+  transactional per-assessment checklist tailoring through a shared question editor, and
+  conceals drafts from portal list/detail access. `npm run verify` is recorded green (29
+  files, 218 tests, build complete). The real HTTP workflow passed against disposable
+  fixtures, and `npm run test:e2e` passed 17 tests across desktop Chromium and Pixel 7 with
+  the desktop copy of the mobile-only checklist test intentionally skipped. E2E found and
+  fixed a
+  legacy-record crash where a lean vendor had no `spocs` array; the list now falls back to
+  the legacy email only for unmigrated display. Refreshing `npm run db:seed` fixed the
+  separate stale portal fixture. See
+  `docs/features/assessment-workflow-stage-3-draft-checklists.md` and `DECISIONS.md` 043.
+  **Stages 1–2 context:** picking up on a different
   machine/account next.** Six defects/gaps were reported against the shipped assessment
   flow (no vendor evidence upload; no per-vendor questionnaire tailoring; a thin assessment
   history; single-SPOC vendors; no explicit send step; no per-question compliance verdict).
@@ -44,14 +56,7 @@
   `git log`) — this session has no GitHub credentials available (`git push` fails with
   "could not read Username" — no `gh` CLI, no stored credential helper entry for
   `github.com`). **Push manually, or from whichever machine/account continues this work.**
-- **Next up: Stage 3 — draft assessments and per-vendor checklist editing.** Not
-  auth-touching. Depends on nothing from Stage 1 or 2. `assignAssessment()` currently sets
-  `status: "sent"` directly — Stage 3 makes it `"draft"` first and adds
-  `AssessmentRepository.updateDraftSnapshot()` (schema-immutability-by-query-filter, same
-  mechanism as `TemplateRepository.updateDraft()`) plus a checklist-editing UI that reuses
-  the template builder's `hydrateSchema()`/`serializeSchema()`/`priorControlIds()` rather
-  than forking them. See `ASSESSMENT-WORKFLOW-PLAN.md` Stage 3 for the full file list. Stages
-  4–5 depend on both Stage 2 (done) and Stage 3 (not started).
+- **Next up:** Stage 4 — send modal, recipients, and history columns. Stage 5 depends on it.
 
 - **Browser E2E and portal reliability hardening added (2026-08-18).** Playwright now runs
   desktop Chromium and a Pixel 7 viewport against a real Next.js server. The read-only suite

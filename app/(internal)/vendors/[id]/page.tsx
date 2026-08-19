@@ -18,6 +18,7 @@ import { ScoreBreakdown } from "@/components/domain/score-breakdown";
 import { AssessmentHistoryList } from "@/components/domain/assessment-history-list";
 import { RiskTierBadge } from "@/components/domain/risk-tier-badge";
 import { CalendarClock, ClipboardList, FileCheck } from "lucide-react";
+import type { QuestionsSchema } from "@/lib/questionnaire/schema";
 
 /**
  * PLAN.md Phase 4, spec §2.1 — SPOC management "within the vendor details page." Same
@@ -97,6 +98,9 @@ export default async function VendorDetailPage({
       id: a._id.toString(),
       status: a.status,
       templateVersion: a.template_version,
+      templateName: a.template_name ?? `Assessment`,
+      templateSnapshot: a.template_snapshot as unknown as QuestionsSchema,
+      updatedAt: a.updated_at.toISOString(),
     })),
   }));
 
@@ -219,7 +223,7 @@ export default async function VendorDetailPage({
         <h2 className="text-foreground text-sm font-semibold">Vendor SPOCs</h2>
         <SpocEditForm
           vendorId={id}
-          initialSpocs={vendor.spocs.map((spoc) => ({
+          initialSpocs={(vendor.spocs ?? []).map((spoc) => ({
             id: spoc._id!.toString(),
             name: spoc.name,
             email: spoc.email,
@@ -236,7 +240,9 @@ export default async function VendorDetailPage({
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-foreground text-sm font-semibold">Assessments</h2>
+        <h2 className="text-foreground text-sm font-semibold">
+          Questionnaires
+        </h2>
         <AssignAssessmentForm
           vendorId={id}
           engagements={engagementRows}
