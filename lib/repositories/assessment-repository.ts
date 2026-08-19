@@ -55,6 +55,26 @@ export class AssessmentRepository extends TenantRepository<AssessmentDoc> {
     );
   }
 
+  sendDraft(
+    id: string | Types.ObjectId,
+    fields: { recipients: Types.ObjectId[]; sentAt: Date; dueDate: Date },
+    opts?: { session?: ClientSession },
+  ) {
+    return this.model.findOneAndUpdate(
+      this.scope({ _id: toObjectId(id), status: "draft" }),
+      {
+        $set: {
+          status: "sent",
+          recipients: fields.recipients,
+          sent_at: fields.sentAt,
+          due_date: fields.dueDate,
+          last_activity_at: fields.sentAt,
+        },
+      } as UpdateQuery<AssessmentDoc>,
+      { returnDocument: "after", session: opts?.session },
+    );
+  }
+
   findByIdInSession(id: string | Types.ObjectId, session: ClientSession) {
     return this.findById(id).session(session);
   }

@@ -53,6 +53,9 @@ const assessmentSchema = new Schema(
     assigned_at: { type: Date, default: null },
     submitted_at: { type: Date, default: null },
     reviewed_at: { type: Date, default: null },
+    recipients: [{ type: Schema.Types.ObjectId }],
+    sent_at: { type: Date, default: null },
+    last_activity_at: { type: Date, default: null },
     // Additive, UI Revamp Round 2 (DECISIONS.md 028/029) — analytics-only fields, no
     // existing writer or reader depended on their absence. Stage 3 leaves due_date null at
     // assignment; Stage 4 sets it on send from Workspace.settings.

@@ -247,6 +247,14 @@ export default async function VendorDetailPage({
           vendorId={id}
           engagements={engagementRows}
           publishedTemplates={publishedTemplateOptions}
+          recipients={(vendor.spocs ?? [])
+            .filter((spoc) => spoc.status === "active")
+            .map((spoc) => ({
+              id: spoc._id!.toString(),
+              name: spoc.name,
+              email: spoc.email,
+              phone: spoc.phone,
+            }))}
         />
       </section>
 

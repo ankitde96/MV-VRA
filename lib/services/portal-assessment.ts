@@ -37,7 +37,15 @@ export async function listVendorAssessments(session: PortalSessionPayload) {
     workspaceId: session.workspaceId,
   });
   return assessmentRepo
-    .find({ vendor_id: session.vendorId, status: { $ne: "draft" } })
+    .find({
+      vendor_id: session.vendorId,
+      status: { $ne: "draft" },
+      $or: [
+        { recipients: new Types.ObjectId(session.spocId) },
+        { recipients: { $exists: false } },
+        { recipients: { $size: 0 } },
+      ],
+    })
     .sort({ assigned_at: -1 })
     .lean();
 }
@@ -56,7 +64,11 @@ async function getVendorAssessment(
   if (
     !assessment ||
     assessment.status === "draft" ||
-    assessment.vendor_id.toString() !== session.vendorId
+    assessment.vendor_id.toString() !== session.vendorId ||
+    ((assessment.recipients?.length ?? 0) > 0 &&
+      !assessment.recipients.some(
+        (recipient) => recipient.toString() === session.spocId,
+      ))
   ) {
     throw new NotFoundError(`Assessment ${assessmentId} not found`);
   }

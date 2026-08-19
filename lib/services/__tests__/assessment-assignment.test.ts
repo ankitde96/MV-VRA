@@ -6,9 +6,11 @@ import { Vendor } from "@/lib/db/models/vendor";
 import { Engagement } from "@/lib/db/models/engagement";
 import { Assessment } from "@/lib/db/models/assessment";
 import { QuestionnaireTemplate } from "@/lib/db/models/questionnaire-template";
+import { Workspace } from "@/lib/db/models/workspace";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import {
   assignAssessment,
+  sendAssessment,
   updateAssessmentChecklist,
 } from "@/lib/services/assessment-assignment";
 import type { QuestionsSchema } from "@/lib/questionnaire/schema";
@@ -38,6 +40,8 @@ describe("assignAssessment (integration)", () => {
   const businessOwnerId = new Types.ObjectId();
 
   async function createVendor(ws: Types.ObjectId, domain: string) {
+    const primaryId = new Types.ObjectId();
+    const secondaryId = new Types.ObjectId();
     return Vendor.create({
       workspace_id: ws,
       legal_name: `Vendor ${domain}`,
@@ -47,6 +51,24 @@ describe("assignAssessment (integration)", () => {
         spoc_email: `spoc@${domain}`,
         spoc_phone: "+10000000000",
       },
+      spocs: [
+        {
+          _id: primaryId,
+          name: "Primary",
+          email: `primary@${domain}`,
+          phone: "+10000000001",
+          is_primary: true,
+          status: "active",
+        },
+        {
+          _id: secondaryId,
+          name: "Secondary",
+          email: `secondary@${domain}`,
+          phone: "+10000000002",
+          is_primary: false,
+          status: "active",
+        },
+      ],
     });
   }
 
@@ -97,7 +119,56 @@ describe("assignAssessment (integration)", () => {
       QuestionnaireTemplate.deleteMany({
         workspace_id: { $in: [workspaceId, otherWorkspaceId] },
       }),
+      Workspace.deleteMany({ _id: { $in: [workspaceId, otherWorkspaceId] } }),
     ]);
+  });
+
+  it("sends a draft to selected active vendor SPOCs and advances the engagement", async () => {
+    await dbConnect();
+    await Workspace.create({
+      _id: workspaceId,
+      entity_name: "Send workspace",
+      slug: `send-${workspaceId}`,
+      settings: {
+        tier_thresholds: { tier1_min: 70, tier2_min: 40 },
+        assessment_response_sla_days: 10,
+      },
+    });
+    const vendor = await createVendor(workspaceId, "send.example");
+    const engagement = await createEngagement(workspaceId, vendor._id);
+    const template = await createTemplate(
+      workspaceId,
+      "published",
+      "send-draft",
+    );
+    const draft = await assignAssessment(
+      { workspaceId },
+      { userId: actorId.toString() },
+      {
+        vendorId: vendor._id.toString(),
+        engagementId: engagement._id.toString(),
+        templateId: template._id.toString(),
+      },
+    );
+
+    const recipientId = vendor.spocs[1]!._id.toString();
+    const sent = await sendAssessment(
+      { workspaceId },
+      { userId: actorId.toString() },
+      draft._id.toString(),
+      { spocIds: [recipientId] },
+    );
+
+    expect(sent?.status).toBe("sent");
+    expect(sent?.recipients.map(String)).toEqual([recipientId]);
+    expect(sent?.sent_at).toBeInstanceOf(Date);
+    expect(sent?.last_activity_at).toEqual(sent?.sent_at);
+    expect(sent!.due_date!.getTime() - sent!.sent_at!.getTime()).toBe(
+      10 * 86_400_000,
+    );
+    expect((await Engagement.findById(engagement._id))?.status).toBe(
+      "in_assessment",
+    );
   });
 
   afterAll(async () => {

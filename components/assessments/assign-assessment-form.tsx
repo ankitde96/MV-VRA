@@ -6,6 +6,10 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AssessmentChecklistEditor } from "@/components/assessments/assessment-checklist-editor";
+import {
+  SendQuestionnaireDialog,
+  type QuestionnaireRecipient,
+} from "@/components/assessments/send-questionnaire-dialog";
 import type { QuestionsSchema } from "@/lib/questionnaire/schema";
 import {
   Select,
@@ -50,10 +54,12 @@ export function AssignAssessmentForm({
   vendorId,
   engagements,
   publishedTemplates,
+  recipients,
 }: {
   vendorId: string;
   engagements: EngagementRow[];
   publishedTemplates: PublishedTemplateOption[];
+  recipients: QuestionnaireRecipient[];
 }) {
   const router = useRouter();
   const [selectedTemplateByEngagement, setSelectedTemplateByEngagement] =
@@ -136,12 +142,17 @@ export function AssignAssessmentForm({
             {engagement.assessments
               .filter((assessment) => assessment.status === "draft")
               .map((assessment) => (
-                <AssessmentChecklistEditor
-                  key={assessment.id}
-                  assessmentId={assessment.id}
-                  initialSchema={assessment.templateSnapshot}
-                  initialUpdatedAt={assessment.updatedAt}
-                />
+                <div key={assessment.id} className="space-y-3">
+                  <AssessmentChecklistEditor
+                    assessmentId={assessment.id}
+                    initialSchema={assessment.templateSnapshot}
+                    initialUpdatedAt={assessment.updatedAt}
+                  />
+                  <SendQuestionnaireDialog
+                    assessmentId={assessment.id}
+                    recipients={recipients}
+                  />
+                </div>
               ))}
 
             {publishedTemplates.length === 0 ? (

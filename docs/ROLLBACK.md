@@ -34,6 +34,16 @@ For anything smaller, `git diff` and `git restore` are sufficient.
 Overwrite this block at the start of each risky change. One at a time.
 
 ```
+Assessment workflow revamp — Stage 4: send, recipients, and assessment history
+(2026-08-19, IN PROGRESS). Safe baseline: 7fe01d2 (merged Stage 3 on main).
+
+Additive Assessment fields: recipients, sent_at, last_activity_at. Draft-only send is
+transactional and recipient ids must resolve to active SPOCs on the assessment's own vendor.
+Portal reads become recipient-scoped. Reversible by restoring Stage 4 files to 7fe01d2;
+records already sent during development remain valid and must not be deleted without
+confirming their ids.
+
+Prior active plan (closed):
 Assessment workflow revamp — Stage 3: draft assessments and per-vendor checklist editing
 (2026-08-19, DONE). See docs/ASSESSMENT-WORKFLOW-PLAN.md Stage 3.
 

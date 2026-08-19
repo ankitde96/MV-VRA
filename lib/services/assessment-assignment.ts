@@ -4,7 +4,10 @@ import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { AssessmentRepository } from "@/lib/repositories/assessment-repository";
 import { EngagementRepository } from "@/lib/repositories/engagement-repository";
 import { TemplateRepository } from "@/lib/repositories/template-repository";
+import { VendorRepository } from "@/lib/repositories/vendor-repository";
+import { WorkspaceRepository } from "@/lib/repositories/workspace-repository";
 import { recordAuditEvent } from "@/lib/audit/record-event";
+import { getMailer } from "@/lib/mail";
 import type { TenantContext } from "@/lib/tenant/context";
 import {
   questionsSchemaSchema,
@@ -156,4 +159,97 @@ export async function updateAssessmentChecklist(
   } finally {
     await session.endSession();
   }
+}
+
+export async function sendAssessment(
+  ctx: TenantContext,
+  actor: { userId: string },
+  assessmentId: string,
+  input: { spocIds: string[] },
+) {
+  await dbConnect();
+  const uniqueIds = [...new Set(input.spocIds)];
+  if (
+    uniqueIds.length === 0 ||
+    uniqueIds.some((id) => !Types.ObjectId.isValid(id))
+  ) {
+    throw new ValidationError(
+      "Choose at least one active questionnaire recipient",
+    );
+  }
+
+  const assessmentRepo = new AssessmentRepository(ctx);
+  const vendorRepo = new VendorRepository(ctx);
+  const engagementRepo = new EngagementRepository(ctx);
+  const workspaceRepo = new WorkspaceRepository();
+  const assessment = await assessmentRepo.findById(assessmentId);
+  if (!assessment)
+    throw new NotFoundError(`Assessment ${assessmentId} not found`);
+  if (assessment.status !== "draft") {
+    throw new ForbiddenError("Only draft assessments can be sent");
+  }
+  const vendor = await vendorRepo.findById(assessment.vendor_id);
+  if (!vendor)
+    throw new NotFoundError(`Vendor ${assessment.vendor_id} not found`);
+  const requested = new Set(uniqueIds);
+  const recipients = vendor.spocs.filter(
+    (spoc) => spoc.status === "active" && requested.has(spoc._id.toString()),
+  );
+  if (recipients.length !== uniqueIds.length) {
+    throw new ValidationError(
+      "Every recipient must be an active SPOC of this vendor",
+    );
+  }
+  const workspace = await workspaceRepo.findById(ctx.workspaceId);
+  const sentAt = new Date();
+  const slaDays = workspace?.settings?.assessment_response_sla_days ?? 21;
+  const dueDate = new Date(sentAt.getTime() + slaDays * 86_400_000);
+
+  const session = await mongoose.startSession();
+  let sent;
+  try {
+    sent = await session.withTransaction(async () => {
+      const updated = await assessmentRepo.sendDraft(
+        assessmentId,
+        { recipients: recipients.map((spoc) => spoc._id), sentAt, dueDate },
+        { session },
+      );
+      if (!updated)
+        throw new ForbiddenError("Only draft assessments can be sent");
+      await engagementRepo.updateOne(
+        { _id: assessment.engagement_id },
+        { $set: { status: "in_assessment" } },
+        { session },
+      );
+      await recordAuditEvent(
+        {
+          workspace_id: new Types.ObjectId(ctx.workspaceId),
+          actor: {
+            type: "internal",
+            id: new Types.ObjectId(actor.userId),
+            email: null,
+          },
+          action: "assessment.sent",
+          entity_type: "assessment",
+          entity_id: assessment._id,
+          diff: { recipients: recipients.map((spoc) => spoc._id) },
+        },
+        { session },
+      );
+      return updated;
+    });
+  } finally {
+    await session.endSession();
+  }
+
+  await Promise.all(
+    recipients.map((spoc) =>
+      getMailer().send({
+        to: spoc.email,
+        subject: `Questionnaire ready: ${assessment.template_name ?? "Vendor assessment"}`,
+        text: `A questionnaire is ready in the vendor portal. Please respond by ${dueDate.toISOString().slice(0, 10)}.`,
+      }),
+    ),
+  );
+  return sent;
 }
