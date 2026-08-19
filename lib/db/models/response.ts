@@ -47,6 +47,15 @@ const responseSchema = new Schema(
     has_exception: { type: Boolean, default: false },
     answered_at: { type: Date, default: null },
     answered_by: { type: Schema.Types.ObjectId, default: null },
+    review_status: {
+      type: String,
+      enum: ["compliant", "non_compliant"],
+      default: null,
+    },
+    reviewer_note: { type: String, default: "" },
+    reviewed_at: { type: Date, default: null },
+    reviewed_by: { type: Schema.Types.ObjectId, default: null },
+    review_round: { type: Number, default: 0 },
   },
   { timestamps: false },
 );

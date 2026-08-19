@@ -8,25 +8,21 @@
 
 ## Current state (as of 2026-08-19)
 
-- **Assessment workflow revamp in progress — Stages 1–3 of 5 done.** Stage 3 now creates
-  draft assessments, supports
-  transactional per-assessment checklist tailoring through a shared question editor, and
-  conceals drafts from portal list/detail access. `npm run verify` is recorded green (29
-  files, 218 tests, build complete). The real HTTP workflow passed against disposable
-  fixtures, and `npm run test:e2e` passed 17 tests across desktop Chromium and Pixel 7 with
-  the desktop copy of the mobile-only checklist test intentionally skipped. E2E found and
-  fixed a
-  legacy-record crash where a lean vendor had no `spocs` array; the list now falls back to
-  the legacy email only for unmigrated display. Refreshing `npm run db:seed` fixed the
-  separate stale portal fixture. See
-  `docs/features/assessment-workflow-stage-3-draft-checklists.md` and `DECISIONS.md` 043.
-  **Stages 1–2 context:** picking up on a different
-  machine/account next.** Six defects/gaps were reported against the shipped assessment
+- **Assessment workflow revamp complete — Stages 1–5 verified.** Stage 5 adds explicit
+  per-control compliant/non-compliant review, reviewer-note autosave, a bounded correction
+  round that reopens only non-compliant controls, server-enforced compliant-control locks,
+  risk-gated completion, and per-vendor open-risk visibility. `npm run verify` is green
+  (29 files, 225 tests, production build); Playwright is green (23 passed across desktop
+  and mobile, one intentional desktop skip). The disposable browser correction journey
+  proves verdict persistence, resend, reviewer-note visibility, and compliant/non-compliant
+  edit boundaries. See `docs/features/assessment-workflow-stage-5-review-resend.md` and
+  `DECISIONS.md` 045.
+  **Stages 1–2 context:** Six defects/gaps were reported against the shipped assessment
   flow (no vendor evidence upload; no per-vendor questionnaire tailoring; a thin assessment
   history; single-SPOC vendors; no explicit send step; no per-question compliance verdict).
   Planned across five stages in `docs/ASSESSMENT-WORKFLOW-PLAN.md` (decisions D1–D8,
   `DECISIONS.md` 040) before any code — **read that plan file first**, then this entry, then
-  the two feature traces below, before touching Stage 3.
+  the feature traces below before touching the remaining Stage 5 work.
   - **Stage 1 — evidence upload on every question — done.** The render/upload gate keyed on
     a template's `evidence` object is relaxed (the real 130-question seeded questionnaire
     never set one, so the control was invisible on all of them); evidence deletion was added
@@ -48,15 +44,7 @@
     fixed (a Stage-2 test fixture genuinely needed `spocs[]` added) or confirmed as a
     pre-existing cross-file local-fs storage race unrelated to this work (reproduces
     intermittently across the whole suite, never in isolation).
-- **`npm run test:e2e` could not be run in this session's sandbox** — TLS interception blocks
-  Playwright's Chromium binary download (`self-signed certificate in certificate chain`),
-  unrelated to the code changes. `npx playwright install chromium && npm run test:e2e` should
-  be run for real before this work is considered fully proven end to end.
-- **Local git commits exist that are not yet pushed to `origin/main`** (see the exact SHAs in
-  `git log`) — this session has no GitHub credentials available (`git push` fails with
-  "could not read Username" — no `gh` CLI, no stored credential helper entry for
-  `github.com`). **Push manually, or from whichever machine/account continues this work.**
-- **Next up:** Stage 4 — send modal, recipients, and history columns. Stage 5 depends on it.
+- **Next up:** choose the next product plan; the assessment workflow plan has no open stage.
 
 - **Browser E2E and portal reliability hardening added (2026-08-18).** Playwright now runs
   desktop Chromium and a Pixel 7 viewport against a real Next.js server. The read-only suite

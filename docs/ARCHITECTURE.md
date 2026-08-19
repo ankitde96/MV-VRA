@@ -27,13 +27,18 @@
 
 ---
 
-**Assessment workflow revamp (2026-08-19):** Stages 1–2 are complete. Stage 3 is implemented
-but its full verification gates remain pending. Assignment now creates a draft; internal
-users tailor only its per-assessment snapshot through a shared question editor. Checklist
-writes are workspace-scoped, draft- and `updated_at`-guarded, and transactional with their
-audit event. The portal service conceals drafts from lists and direct reads. See
-`docs/features/assessment-workflow-stage-3-draft-checklists.md`; do not treat Stage 3 as
-complete until its full verify, HTTP, and browser gates are recorded there.
+**Assessment workflow revamp (2026-08-19):** Stages 1–5 are complete. Stage 4 adds a
+draft-only transactional send service, recipient-scoped portal authorization, explicit
+cross-collection activity timestamps, and a shared DataTable history surface. Stage 3 is
+the draft/tailoring foundation; Stage 4 freezes that snapshot on send, starts the SLA, and
+uses selected SPOC ids as the portal access boundary. Stage 5 closes the review loop.
+`AssessmentReviewService` owns per-response verdicts,
+query-guarded resend, risk-gated completion, and audit events. Portal write services enforce
+the correction boundary independently of the UI. Both reviewer and vendor forms use
+`hooks/use-debounced-autosave.ts`; the route/service/repository boundary remains intact. See
+`docs/features/assessment-workflow-stage-3-draft-checklists.md` and
+`docs/features/assessment-workflow-stage-4-send-and-history.md` and
+`docs/features/assessment-workflow-stage-5-review-resend.md`.
 
 ## 1. What this system is
 

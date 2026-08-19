@@ -23,6 +23,55 @@
 
 ---
 
+## [2026-08-19] 045 — Correction rounds reopen only explicitly non-compliant controls
+
+**Decision:** Store reviewer verdict and note on each response. A resend changes the
+assessment to `changes_requested`, increments `review_round`, and reopens only responses
+marked `non_compliant`; compliant controls remain server-locked. Completion requires every
+visible control to be marked and every non-compliant control to have a linked risk.
+
+**Rationale:** Reopening the entire questionnaire would let a vendor silently alter already
+approved answers. A response-level verdict is the narrowest durable boundary, while the
+risk requirement ensures accepted non-compliance cannot disappear from the risk register.
+The shared 400 ms autosave hook gives vendor and reviewer surfaces the same persistence
+behavior and visible saved timestamp.
+
+**Consequences:** `changes_requested` is an editable assessment state, but portal writers
+must additionally authorize the individual control. Resubmit validates only the correction
+set and notifies the reviewer who requested changes. Review and resend mutations are audited;
+resend is status-guarded in the database query to prevent a concurrent workflow overwrite.
+
+**Decided by:** Project owner through decisions D3/D6; implemented by Codex (GPT-5).
+
+---
+
+## [2026-08-19] 044 — Sending freezes drafts and recipient ids are the access boundary
+
+**Decision:** Sending is a draft-only, tenant-scoped transaction that stores selected active
+SPOC subdocument ids, stamps the send/SLA/activity dates, advances the engagement, and writes
+the audit event. Portal list and detail access require the authenticated `spocId` to appear in
+`recipients`. Historical assessments with no recipient field remain accessible to active
+vendor SPOCs so the additive rollout does not strand existing work.
+
+**Context:** Stage 3 deliberately stopped assignment before vendor visibility. Stage 4 must
+start the SLA from actual delivery and make the recipient checklist an authorization rule,
+not merely an email preference.
+
+**Rationale:** SPOC subdocument ids are immutable recipient references already derived from
+the signed portal session. Validating them against the assessment's own vendor prevents a
+caller from granting access across vendors. A query-level draft guard closes double-send
+races. `last_activity_at` is explicit because response writes live in another collection and
+cannot update Assessment timestamps implicitly.
+
+**Consequences:** New sends are strictly recipient-scoped; all answer/evidence/submission and
+review activity stamps the assessment. Mail remains console-only. The history table can now
+show questionnaire name/version, send time, activity time, and one shared plain-language
+status vocabulary.
+
+**Decided by:** Codex (GPT-5), implementing project-owner decisions D5 and Stage 4.
+
+---
+
 ## [2026-08-19] 043 — Draft checklist edits are transactional and structurally immutable
 
 **Decision:** Assignment creates a `draft` assessment without starting the response SLA or

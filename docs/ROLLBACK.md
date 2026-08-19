@@ -34,8 +34,23 @@ For anything smaller, `git diff` and `git restore` are sufficient.
 Overwrite this block at the start of each risky change. One at a time.
 
 ```
+Assessment workflow revamp — Stage 5: compliance marking and resend loop
+(2026-08-19, DONE). Safe baseline: 61a5569 plus the verified uncommitted Stage 4
+completion diff on main.
+
+Additive Response review fields and Assessment review-round/change-request fields. No
+migration or destructive write. Reversible by restoring Stage 5 files; assessments already
+in `changes_requested` must be returned to `submitted` only after confirming their ids.
+
+Verified: `npm run verify` passed (29 files, 225 tests, production build); `npm run
+test:e2e` passed 23 across desktop Chromium and Pixel 7 with one intentional desktop skip.
+The browser journey proved reviewer autosave, resend, locked compliant controls, editable
+non-compliant controls, and reviewer-note visibility. No migration or destructive cleanup
+was run.
+
+Prior active plan (closed):
 Assessment workflow revamp — Stage 4: send, recipients, and assessment history
-(2026-08-19, IN PROGRESS). Safe baseline: 7fe01d2 (merged Stage 3 on main).
+(2026-08-19, DONE). Safe baseline: 7fe01d2 (merged Stage 3 on main).
 
 Additive Assessment fields: recipients, sent_at, last_activity_at. Draft-only send is
 transactional and recipient ids must resolve to active SPOCs on the assessment's own vendor.
@@ -43,7 +58,11 @@ Portal reads become recipient-scoped. Reversible by restoring Stage 4 files to 7
 records already sent during development remain valid and must not be deleted without
 confirming their ids.
 
-Prior active plan (closed):
+Verified: `npm run verify` passed (29 files, 221 tests, build); `npm run test:e2e`
+passed 21 with one intentional desktop skip; a disposable real-HTTP walkthrough proved
+single-recipient send, 21-day SLA, engagement transition, selected/unselected list and
+direct-access boundaries, and answer-driven activity movement, then removed all fixtures.
+
 Assessment workflow revamp — Stage 3: draft assessments and per-vendor checklist editing
 (2026-08-19, DONE). See docs/ASSESSMENT-WORKFLOW-PLAN.md Stage 3.
 

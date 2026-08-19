@@ -429,6 +429,25 @@ npm run test:e2e
 17 passed, 1 skipped (1.4m)
 ```
 
+### Assessment workflow Stage 4 — send, recipients, and history gates
+
+- [x] Draft-only send stores selected active SPOCs, starts the workspace SLA, stamps
+      `sent_at`/`last_activity_at`, advances the engagement, and audits atomically.
+- [x] Invalid/cross-vendor/inactive recipient ids are refused before state changes.
+- [x] Portal list and detail are scoped to signed `spocId`; legacy sent assessments without
+      recipients remain usable.
+- [x] History uses the shared DataTable with exactly Questionnaire, Started, Last update,
+      and Status; portal/history/review queue share plain-language status labels.
+- [x] Activity timestamp moves on answer, evidence add/delete, submit, risk/review updates,
+      and completion.
+- [x] Real HTTP: selected SPOC saw the assessment; unchecked SPOC list hid it and direct
+      access rendered not-found; stored SLA was 21 days and answer autosave moved activity.
+      Cleanup removed one response, audit, assessment, and engagement.
+- [x] Playwright: 21 passed, 1 intentional desktop skip (56.3s), including send-modal
+      recipient selection and portal scoping on desktop Chromium and Pixel 7.
+- [x] `npm run verify`: 29 files, 221/221 tests, lint 0 errors/1 known advisory, typecheck
+      and 35-page production build passed.
+
 ## Gate 3 — Build
 
 ```bash
@@ -547,6 +566,17 @@ documents/[documentId]/route.ts`) requires a valid session (401 without one,
       HTTP request.
 - [ ] Migrations are reversible, and the reverse was actually tested (not applicable yet —
       no migration has been needed)
+
+### Assessment workflow Stage 5 — review and correction-round gates
+
+- [x] Verdict and reviewer note persist; first mark advances submitted to under review.
+- [x] Resend refuses zero non-compliant responses and query-guards eligible source status.
+- [x] Correction-round portal writes refuse compliant controls at the service boundary.
+- [x] Completion lists unmarked controls and non-compliant controls without risks, then
+      succeeds after the risk exists.
+- [x] Shared 400 ms autosave flushes before resend/complete and exposes saved/error state.
+- [x] `npm run verify`: 29 test files, 225 tests, typecheck and 35-page build passed.
+- [x] `npm run test:e2e`: 23 passed on desktop/mobile, one intentional desktop skip.
 
 ## Gate 6 — Manual smoke path (run before any release)
 

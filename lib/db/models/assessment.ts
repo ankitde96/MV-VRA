@@ -41,6 +41,7 @@ const assessmentSchema = new Schema(
         "in_progress",
         "submitted",
         "under_review",
+        "changes_requested",
         "completed",
         "archived",
       ],
@@ -56,6 +57,9 @@ const assessmentSchema = new Schema(
     recipients: [{ type: Schema.Types.ObjectId }],
     sent_at: { type: Date, default: null },
     last_activity_at: { type: Date, default: null },
+    review_round: { type: Number, default: 0 },
+    resent_by: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    resent_at: { type: Date, default: null },
     // Additive, UI Revamp Round 2 (DECISIONS.md 028/029) — analytics-only fields, no
     // existing writer or reader depended on their absence. Stage 3 leaves due_date null at
     // assignment; Stage 4 sets it on send from Workspace.settings.

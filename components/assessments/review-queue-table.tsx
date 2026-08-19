@@ -6,6 +6,7 @@ import { ClipboardCheck } from "lucide-react";
 import { DataTable } from "@/components/data-table/data-table";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { EmptyState } from "@/components/layout/empty-state";
+import { assessmentStatusLabel } from "@/lib/assessments/status-label";
 
 export interface ReviewQueueRow {
   id: string;
@@ -31,7 +32,12 @@ const columns: ColumnDef<ReviewQueueRow>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    cell: ({ row }) => (
+      <StatusBadge
+        status={row.original.status}
+        label={assessmentStatusLabel(row.original.status)}
+      />
+    ),
   },
   {
     accessorKey: "submitted_at",

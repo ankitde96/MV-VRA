@@ -3,8 +3,7 @@ import { getCurrentPortalSession } from "@/lib/auth/current-portal-session";
 import { getAssessmentForAnswering } from "@/lib/services/portal-assessment";
 import { AssessmentAnswerForm } from "@/components/portal/assessment-answer-form";
 import type { QuestionsSchema } from "@/lib/questionnaire/schema";
-
-const EDITABLE_STATUSES = new Set(["sent", "in_progress"]);
+import { PORTAL_EDITABLE_ASSESSMENT_STATUSES } from "@/lib/assessments/editable-statuses";
 
 /**
  * DESIGN-SYSTEM.md §7 rule 8: "the vendor never sees `residual_score`, `control_id`, or
@@ -15,6 +14,7 @@ const PLAIN_STATUS: Record<string, string> = {
   draft: "Not yet sent to you",
   sent: "Ready for you to complete",
   in_progress: "In progress — pick up where you left off",
+  changes_requested: "Changes requested — update the flagged answers",
   submitted: "Submitted — thank you, no further action needed",
   under_review: "Submitted — under review by our team",
   completed: "Review complete",
@@ -42,6 +42,8 @@ export default async function PortalAssessmentPage({
   const initialResponses = responses.map((r) => ({
     control_id: r.control_id,
     response_value: r.response_value,
+    review_status: r.review_status ?? null,
+    reviewer_note: r.reviewer_note ?? "",
     evidence: r.evidence.map((e) => ({
       id: e._id!.toString(),
       filename: e.filename,
@@ -63,9 +65,10 @@ export default async function PortalAssessmentPage({
 
       <AssessmentAnswerForm
         assessmentId={id}
+        assessmentStatus={assessment.status}
         schema={schema}
         initialResponses={initialResponses}
-        readOnly={!EDITABLE_STATUSES.has(assessment.status)}
+        readOnly={!PORTAL_EDITABLE_ASSESSMENT_STATUSES.has(assessment.status)}
       />
     </div>
   );

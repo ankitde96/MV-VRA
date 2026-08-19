@@ -126,12 +126,14 @@ will use, so they cannot diverge.
    rather than reference"). Stage 3 creates it as `draft`, leaves `due_date` null, and does
    not advance the engagement. Internal users may tailor that snapshot through the shared
    question editor; the repository query itself permits updates only while status is draft,
-   and the update/audit pair is transactional (`DECISIONS.md` 043). Stage 4 will send it,
-   start the SLA, and advance the engagement.
+   and the update/audit pair is transactional (`DECISIONS.md` 043). The send dialog selects
+   active vendor SPOCs and `POST /api/assessments/[id]/send` atomically freezes the draft,
+   stamps `sent_at`/`due_date`/`last_activity_at`, records recipients, audits the send, and
+   advances the engagement to `in_assessment` (`DECISIONS.md` 044).
 3. SPOC opens the assessment in the portal — `app/(portal)/portal/assessments/[id]/page.tsx`
    fetches via `getAssessmentForAnswering()` (`lib/services/portal-assessment.ts`,
-   vendor/workspace-scoped, 404 on tampering or drafts; the portal list service also excludes
-   drafts) and renders `template_snapshot` through
+   vendor/workspace/recipient-scoped, 404 on tampering, drafts, or an unchecked SPOC; the
+   portal list applies the same recipient boundary) and renders `template_snapshot` through
    `AssessmentAnswerForm` (`components/portal/assessment-answer-form.tsx`), reusing the
    exact `question-renderer.tsx` the Phase 5 builder preview uses.
 4. **Dynamic Conditional Logic** shows/suppresses follow-ups live as the SPOC answers —
@@ -303,3 +305,17 @@ a `viewer` membership in a second — the roll-up response included the first wo
 real vendor/risk counts and omitted the second entirely, and `authorized_workspace_count`
 (1) was strictly less than `total_membership_count` (2). See
 `docs/features/phase-11-multi-workspace-rbac-sharing-and-executive-rollup.md`.
+
+## F7 — Per-control review and correction round ✅ BUILT (Stage 5, 2026-08-19)
+
+1. Reviewer marks every visible response compliant or non-compliant; the shared 400 ms
+   autosave persists verdict and note and advances `submitted → under_review`.
+2. Request changes refuses an empty non-compliant set, then query-guards the source status,
+   increments `review_round`, stamps the reviewer, audits, emails recipients, and moves to
+   `changes_requested`.
+3. Portal renders compliant controls locked and only non-compliant controls editable. The
+   same boundary is rechecked by answer and evidence services, so crafted requests fail.
+4. Resubmit validates only the correction set, returns to `submitted`, and emails the
+   reviewer who requested changes.
+5. Completion refuses visible unmarked controls and non-compliant controls without a linked
+   risk; after those gates pass it completes through the existing scoring/review path.

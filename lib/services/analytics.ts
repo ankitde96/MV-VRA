@@ -769,13 +769,20 @@ export interface VendorScorecard {
   reduction_percent: number | null;
   open_risk_by_severity: Record<RiskSeverityKey, number>;
   cap_tasks: { open: number; overdue: number; closed: number };
+  open_risks: Array<{
+    id: string;
+    title: string;
+    severity: string;
+    status: string;
+    residual_score: number;
+  }>;
   assessment_history: Array<{
     assessment_id: string;
     status: string;
     template_version: number;
-    assigned_at: string | null;
-    submitted_at: string | null;
-    reviewed_at: string | null;
+    template_name: string | null;
+    sent_at: string | null;
+    last_activity_at: string | null;
   }>;
   evidence_coverage_percent: number | null;
   next_review_due: string | null;
@@ -823,7 +830,7 @@ export async function getVendorScorecard(
       .select("cap_tasks")
       .lean(),
     Assessment.find({ workspace_id: workspaceId, vendor_id: vendorObjectId })
-      .select("status template_version assigned_at submitted_at reviewed_at")
+      .select("status template_name template_version sent_at last_activity_at")
       .sort({ created_at: -1 })
       .lean(),
     Response.aggregate([
@@ -865,7 +872,7 @@ export async function getVendorScorecard(
     workspace_id: workspaceId,
     vendor_id: vendorObjectId,
   })
-    .select("residual_score status")
+    .select("title severity residual_score status")
     .lean();
   const residualTotal = residualRows
     .filter((r) => r.status !== "closed")
@@ -905,17 +912,17 @@ export async function getVendorScorecard(
       _id: Types.ObjectId;
       status: string;
       template_version: number;
-      assigned_at: Date | null;
-      submitted_at: Date | null;
-      reviewed_at: Date | null;
+      template_name: string | null;
+      sent_at: Date | null;
+      last_activity_at: Date | null;
     }>
   ).map((a) => ({
     assessment_id: a._id.toString(),
     status: a.status,
     template_version: a.template_version,
-    assigned_at: a.assigned_at?.toISOString() ?? null,
-    submitted_at: a.submitted_at?.toISOString() ?? null,
-    reviewed_at: a.reviewed_at?.toISOString() ?? null,
+    template_name: a.template_name,
+    sent_at: a.sent_at?.toISOString() ?? null,
+    last_activity_at: a.last_activity_at?.toISOString() ?? null,
   }));
 
   const evidenceRow = (
@@ -933,6 +940,15 @@ export async function getVendorScorecard(
     reduction_percent: reductionPercent,
     open_risk_by_severity: openRiskBySeverity,
     cap_tasks: capTasks,
+    open_risks: residualRows
+      .filter((risk) => risk.status !== "closed")
+      .map((risk) => ({
+        id: risk._id.toString(),
+        title: risk.title,
+        severity: risk.severity,
+        status: risk.status,
+        residual_score: risk.residual_score,
+      })),
     assessment_history: assessmentHistory,
     evidence_coverage_percent: evidenceCoveragePercent,
     next_review_due: nextReviewDue?.toISOString() ?? null,

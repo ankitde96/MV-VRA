@@ -9,6 +9,7 @@ import { Assessment } from "@/lib/db/models/assessment";
 import { Risk } from "@/lib/db/models/risk";
 import { User } from "@/lib/db/models/user";
 import { AuditEvent } from "@/lib/db/models/audit-event";
+import { Response } from "@/lib/db/models/response";
 import { AssessmentReviewService } from "@/lib/services/assessment-review";
 import { getMailer } from "@/lib/mail";
 
@@ -115,7 +116,139 @@ describe("AssessmentReviewService (integration)", () => {
       AuditEvent.deleteMany({
         workspace_id: { $in: [workspaceId, otherWorkspaceId] },
       }),
+      Response.deleteMany({
+        workspace_id: { $in: [workspaceId, otherWorkspaceId] },
+      }),
     ]);
+  });
+
+  it("marks response verdicts and resends only when a non-compliant response exists", async () => {
+    await dbConnect();
+    const assessment = await seedFixtures();
+    await Assessment.updateOne(
+      { _id: assessment._id },
+      {
+        $set: {
+          template_snapshot: {
+            schema_format_version: 1,
+            sections: [
+              {
+                id: "s",
+                title: "S",
+                questions: [
+                  {
+                    control_id: "Q1",
+                    text: "Q1?",
+                    type: "text",
+                    required: true,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    );
+    await Response.create({
+      workspace_id: workspaceId,
+      assessment_id: assessment._id,
+      control_id: "Q1",
+      question_text: "Q1?",
+      response_value: "answer",
+    });
+    const actorId = new Types.ObjectId();
+    const service = new AssessmentReviewService({ workspaceId });
+    await service.markResponseReview(
+      assessment._id.toString(),
+      "Q1",
+      { review_status: "non_compliant", reviewer_note: "Please revise" },
+      actorId.toString(),
+    );
+    const result = await service.resendQuestionnaire(
+      assessment._id.toString(),
+      actorId.toString(),
+    );
+    expect(result.status).toBe("changes_requested");
+    const stored = await Assessment.findById(assessment._id);
+    expect(stored?.review_round).toBe(1);
+    expect(stored?.resent_by?.toString()).toBe(actorId.toString());
+    expect(
+      (await Response.findOne({ assessment_id: assessment._id }))
+        ?.review_status,
+    ).toBe("non_compliant");
+  });
+
+  it("blocks completion for unmarked controls and non-compliant controls without a risk", async () => {
+    await dbConnect();
+    const assessment = await seedFixtures();
+    await Assessment.updateOne(
+      { _id: assessment._id },
+      {
+        $set: {
+          template_snapshot: {
+            schema_format_version: 1,
+            sections: [
+              {
+                id: "s",
+                title: "S",
+                questions: [
+                  {
+                    control_id: "Q1",
+                    text: "Q1?",
+                    type: "text",
+                    required: true,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    );
+    await Response.create({
+      workspace_id: workspaceId,
+      assessment_id: assessment._id,
+      control_id: "Q1",
+      question_text: "Q1?",
+      response_value: "answer",
+    });
+    const service = new AssessmentReviewService({ workspaceId });
+    await expect(
+      service.completeReview(assessment._id.toString()),
+    ).rejects.toThrow(/unmarked: Q1/);
+    await service.markResponseReview(
+      assessment._id.toString(),
+      "Q1",
+      { review_status: "non_compliant" },
+      new Types.ObjectId().toString(),
+    );
+    await expect(
+      service.completeReview(assessment._id.toString()),
+    ).rejects.toThrow(/non-compliant without risk: Q1/);
+
+    await service.raiseRisk(assessment._id.toString(), {
+      control_id: "Q1",
+      title: "Question requires remediation",
+      severity: "medium",
+      enterprise_risk_category: "Information Security",
+      impact_level: "medium",
+    });
+    await expect(
+      service.completeReview(assessment._id.toString()),
+    ).resolves.toMatchObject({ status: "completed" });
+  });
+
+  it("refuses to resend when no response is non-compliant", async () => {
+    await dbConnect();
+    const assessment = await seedFixtures();
+    const service = new AssessmentReviewService({ workspaceId });
+
+    await expect(
+      service.resendQuestionnaire(
+        assessment._id.toString(),
+        new Types.ObjectId().toString(),
+      ),
+    ).rejects.toThrow(/at least one response non-compliant/i);
   });
 
   afterAll(async () => {

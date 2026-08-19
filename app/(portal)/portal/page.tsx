@@ -11,16 +11,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-
-const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
-  sent: "Awaiting your response",
-  in_progress: "In progress",
-  submitted: "Submitted",
-  under_review: "Under review",
-  completed: "Completed",
-  archived: "Archived",
-};
+import { assessmentStatusLabel } from "@/lib/assessments/status-label";
 
 /**
  * PLAN.md Phase 6 exit criterion, `FLOW.md` F2 gap (b): `vendor_id` comes only from the
@@ -67,10 +58,11 @@ export default async function PortalHomePage() {
                 <CardContent className="flex items-center justify-between">
                   <div>
                     <p className="text-foreground font-medium">
-                      Assessment {assessment.template_version}
+                      {assessment.template_name ?? "Assessment"} v
+                      {assessment.template_version}
                     </p>
                     <p className="text-muted-foreground text-sm">
-                      {STATUS_LABEL[assessment.status] ?? assessment.status}
+                      {assessmentStatusLabel(assessment.status)}
                     </p>
                   </div>
                   <ChevronRight

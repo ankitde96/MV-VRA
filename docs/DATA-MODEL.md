@@ -167,15 +167,18 @@ Published documents are immutable. Enforced in the repository (no update path wh
 
 ### `assessments`
 
-| Field                                               | Type    | Notes                                                                                            |
-| --------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------ |
-| `_id`, `workspace_id`, `engagement_id`, `vendor_id` |         |                                                                                                  |
-| `template_id`, `template_version`, `template_name`  |         | provenance reference and join-free history label                                                 |
-| **`template_snapshot`**                             | object  | per-assessment copy, editable only while `draft`; frozen on send                                 |
-| `status`                                            | enum    | `draft` \| `sent` \| `in_progress` \| `submitted` \| `under_review` \| `completed` \| `archived` |
-| `overall_score`                                     | number? | **derived**, recomputed from constituent risks                                                   |
-| `assigned_at`, `submitted_at`, `reviewed_at`        | Date    |                                                                                                  |
-| `due_date`                                          | Date?   | null for drafts; Stage 4 stamps it when sent                                                     |
+| Field                                               | Type       | Notes                                                               |
+| --------------------------------------------------- | ---------- | ------------------------------------------------------------------- |
+| `_id`, `workspace_id`, `engagement_id`, `vendor_id` |            |                                                                     |
+| `template_id`, `template_version`, `template_name`  |            | provenance reference and join-free history label                    |
+| **`template_snapshot`**                             | object     | per-assessment copy, editable only while `draft`; frozen on send    |
+| `status`                                            | enum       | adds `changes_requested` between review and vendor correction       |
+| `overall_score`                                     | number?    | **derived**, recomputed from constituent risks                      |
+| `assigned_at`, `submitted_at`, `reviewed_at`        | Date       |                                                                     |
+| `due_date`                                          | Date?      | null for drafts; Stage 4 stamps it when sent                        |
+| `recipients`                                        | ObjectId[] | selected active Vendor `spocs[]` ids; portal access boundary        |
+| `sent_at`, `last_activity_at`                       | Date?      | explicit send time and cross-collection workflow activity timestamp |
+| `review_round`, `resent_by`, `resent_at`            |            | correction-round counter and most recent requesting reviewer        |
 
 Indexes: `{ workspace_id: 1, engagement_id: 1 }` · `{ workspace_id: 1, status: 1 }` ·
 `{ workspace_id: 1, vendor_id: 1, status: 1 }`
@@ -205,6 +208,9 @@ reviewer's per-control queries stay cheap.
 | `evidence`                             | array   | `[{ file_key, filename, mime, size, uploaded_at, uploaded_by }]` |
 | `is_suppressed`                        | boolean | true when conditional logic hid the question                     |
 | `answered_at`, `answered_by`           |         |                                                                  |
+| `review_status`                        | enum?   | `compliant` \| `non_compliant`; null means unmarked              |
+| `reviewer_note`, `reviewed_at/by`      |         | correction instruction and reviewer attribution                  |
+| `review_round`                         | number  | assessment round in which this verdict was recorded              |
 
 Indexes: `{ workspace_id: 1, assessment_id: 1, control_id: 1 }` unique — the uniqueness is
 what makes autosave an idempotent upsert.

@@ -216,7 +216,39 @@ export default async function VendorDetailPage({
             }
           />
         </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-foreground text-sm font-semibold">
+          Assessment history
+        </h2>
         <AssessmentHistoryList history={scorecard.assessment_history} />
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-foreground text-sm font-semibold">Open risks</h2>
+        {scorecard.open_risks.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No open risks.</p>
+        ) : (
+          <div className="divide-y rounded-lg border">
+            {scorecard.open_risks.map((risk) => (
+              <div
+                key={risk.id}
+                className="flex items-center justify-between gap-4 p-3 text-sm"
+              >
+                <div>
+                  <p className="font-medium">{risk.title}</p>
+                  <p className="text-muted-foreground text-xs capitalize">
+                    {risk.severity} · {risk.status}
+                  </p>
+                </div>
+                <span className="font-mono font-semibold">
+                  {risk.residual_score}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="space-y-4">

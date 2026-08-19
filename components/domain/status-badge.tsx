@@ -30,11 +30,17 @@ const STATUS_TONE: Record<
   overdue: "destructive",
 };
 
-export function StatusBadge({ status }: { status: string }) {
+export function StatusBadge({
+  status,
+  label,
+}: {
+  status: string;
+  label?: string;
+}) {
   const tone = STATUS_TONE[status] ?? "secondary";
   return (
     <Badge variant={tone} className="capitalize">
-      {status.replace(/_/g, " ")}
+      {label ?? status.replace(/_/g, " ")}
     </Badge>
   );
 }

@@ -5,6 +5,9 @@ import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { AssessmentRepository } from "@/lib/repositories/assessment-repository";
 import { ResponseRepository } from "@/lib/repositories/response-repository";
 import { recordAuditEvent } from "@/lib/audit/record-event";
+import { PORTAL_EDITABLE_ASSESSMENT_STATUSES } from "@/lib/assessments/editable-statuses";
+import { User } from "@/lib/db/models/user";
+import { getMailer } from "@/lib/mail";
 import { getStorageDriver } from "@/lib/storage";
 import {
   sanitizeFilename,
@@ -29,7 +32,6 @@ import type { PortalSessionPayload } from "@/lib/auth/portal-session";
 // these statuses, the portal must refuse to mutate it, not just hide the inputs in the UI.
 // The client-side `readOnly` flag (components/portal/assessment-answer-form.tsx) is a UX
 // nicety; this is the actual boundary.
-const EDITABLE_STATUSES = new Set(["sent", "in_progress"]);
 
 export async function listVendorAssessments(session: PortalSessionPayload) {
   await dbConnect();
@@ -80,12 +82,30 @@ async function getEditableVendorAssessment(
   assessmentId: string,
 ) {
   const assessment = await getVendorAssessment(session, assessmentId);
-  if (!EDITABLE_STATUSES.has(assessment.status)) {
+  if (!PORTAL_EDITABLE_ASSESSMENT_STATUSES.has(assessment.status)) {
     throw new ForbiddenError(
       `Assessment ${assessmentId} is ${assessment.status} and can no longer be edited`,
     );
   }
   return assessment;
+}
+
+async function assertControlEditable(
+  session: PortalSessionPayload,
+  assessment: Awaited<ReturnType<typeof getEditableVendorAssessment>>,
+  controlId: string,
+) {
+  if (assessment.status !== "changes_requested") return;
+  const response = await new ResponseRepository({
+    workspaceId: session.workspaceId,
+  })
+    .findOneByControl(assessment._id, controlId)
+    .lean();
+  if (response?.review_status !== "non_compliant") {
+    throw new ForbiddenError(
+      "Only non-compliant responses can be changed in this round",
+    );
+  }
 }
 
 export async function getAssessmentForAnswering(
@@ -114,15 +134,20 @@ export async function saveResponse(
       `Unknown control_id "${controlId}" for this assessment`,
     );
   }
+  await assertControlEditable(session, assessment, controlId);
 
   const responseRepo = new ResponseRepository({
     workspaceId: session.workspaceId,
   });
-  return responseRepo.upsertAnswer(assessmentId, controlId, {
+  const response = await responseRepo.upsertAnswer(assessmentId, controlId, {
     question_text: question.text,
     response_value: value,
     answered_by: new Types.ObjectId(session.vendorId),
   });
+  await new AssessmentRepository({
+    workspaceId: session.workspaceId,
+  }).touchActivity(assessmentId);
+  return response;
 }
 
 export interface UploadEvidenceInput {
@@ -154,6 +179,7 @@ export async function uploadEvidence(
       `Unknown control_id "${controlId}" for this assessment`,
     );
   }
+  await assertControlEditable(session, assessment, controlId);
   // ASSESSMENT-WORKFLOW-PLAN.md Stage 1 (D4): evidence upload is accepted on every
   // question now, not only ones the template flags with an `evidence` object — the real
   // seeded questionnaire never sets one. `validateUploadedFile()` below (MIME + size) is
@@ -191,6 +217,9 @@ export async function uploadEvidence(
     uploaded_at: new Date(),
   };
   await responseRepo.addEvidence(assessmentId, controlId, evidence);
+  await new AssessmentRepository({
+    workspaceId: session.workspaceId,
+  }).touchActivity(assessmentId);
 
   await recordAuditEvent({
     workspace_id: assessment.workspace_id,
@@ -227,6 +256,7 @@ export async function deleteEvidence(
   evidenceId: string,
 ) {
   const assessment = await getEditableVendorAssessment(session, assessmentId);
+  await assertControlEditable(session, assessment, controlId);
   const responseRepo = new ResponseRepository({
     workspaceId: session.workspaceId,
   });
@@ -242,6 +272,9 @@ export async function deleteEvidence(
 
   const storage = getStorageDriver();
   await storage.delete(evidence.file_key);
+  await new AssessmentRepository({
+    workspaceId: session.workspaceId,
+  }).touchActivity(assessmentId);
 
   await recordAuditEvent({
     workspace_id: assessment.workspace_id,
@@ -315,6 +348,12 @@ export async function submitAssessment(
 
       const response = responseByControl.get(question.control_id);
       if (
+        assessment.status === "changes_requested" &&
+        response?.review_status !== "non_compliant"
+      ) {
+        continue;
+      }
+      if (
         question.required &&
         !isAnswered(response?.response_value as AnswersMap[string])
       ) {
@@ -333,9 +372,16 @@ export async function submitAssessment(
   const assessmentRepo = new AssessmentRepository({
     workspaceId: session.workspaceId,
   });
+  const submittedAt = new Date();
   await assessmentRepo.updateOne(
     { _id: assessment._id },
-    { $set: { status: "submitted", submitted_at: new Date() } },
+    {
+      $set: {
+        status: "submitted",
+        submitted_at: submittedAt,
+        last_activity_at: submittedAt,
+      },
+    },
   );
 
   await recordAuditEvent({
@@ -349,6 +395,19 @@ export async function submitAssessment(
     entity_type: "assessment",
     entity_id: assessment._id,
   });
+
+  if (assessment.status === "changes_requested" && assessment.resent_by) {
+    const reviewer = await User.findById(assessment.resent_by)
+      .select("email")
+      .lean();
+    if (reviewer?.email) {
+      await getMailer().send({
+        to: reviewer.email,
+        subject: `Vendor resubmitted ${assessment.template_name ?? "an assessment"}`,
+        text: "The requested questionnaire corrections have been resubmitted and are ready for review.",
+      });
+    }
+  }
 
   return { ...assessment.toObject(), status: "submitted" as const };
 }

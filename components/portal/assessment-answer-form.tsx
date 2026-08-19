@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -17,22 +17,25 @@ import {
   EvidenceUpload,
   type EvidenceItem,
 } from "@/components/portal/evidence-upload";
+import { useDebouncedAutosave } from "@/hooks/use-debounced-autosave";
 
 export interface InitialResponse {
   control_id: string;
   response_value: unknown;
   evidence: EvidenceItem[];
+  review_status: "compliant" | "non_compliant" | null;
+  reviewer_note: string;
 }
-
-const SAVE_DEBOUNCE_MS = 400;
 
 export function AssessmentAnswerForm({
   assessmentId,
+  assessmentStatus,
   schema,
   initialResponses,
   readOnly,
 }: {
   assessmentId: string;
+  assessmentStatus: string;
   schema: QuestionsSchema;
   initialResponses: InitialResponse[];
   readOnly: boolean;
@@ -51,6 +54,9 @@ export function AssessmentAnswerForm({
   >(() =>
     Object.fromEntries(initialResponses.map((r) => [r.control_id, r.evidence])),
   );
+  const reviewByControl = Object.fromEntries(
+    initialResponses.map((response) => [response.control_id, response]),
+  );
   const [savingControlIds, setSavingControlIds] = useState<Set<string>>(
     new Set(),
   );
@@ -64,8 +70,6 @@ export function AssessmentAnswerForm({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [currentSection, setCurrentSection] = useState(0);
-  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const pendingValues = useRef<Record<string, AnswersMap[string]>>({});
 
   const visibility = computeVisibility(schema, answers);
   const visibleSections = schema.sections
@@ -120,7 +124,6 @@ export function AssessmentAnswerForm({
           ...prev,
           [controlId]: new Date(),
         }));
-        delete pendingValues.current[controlId];
         return true;
       } catch (error) {
         setSaveErrorsByControl((prev) => ({
@@ -142,16 +145,11 @@ export function AssessmentAnswerForm({
     [assessmentId],
   );
 
-  const saveAnswer = useCallback(
-    (controlId: string, value: AnswersMap[string]) => {
-      pendingValues.current[controlId] = value;
-      clearTimeout(saveTimers.current[controlId]);
-      saveTimers.current[controlId] = setTimeout(() => {
-        void persistAnswer(controlId, value);
-      }, SAVE_DEBOUNCE_MS);
-    },
-    [persistAnswer],
-  );
+  const {
+    schedule: saveAnswer,
+    flush: flushAnswers,
+    pendingValues,
+  } = useDebouncedAutosave({ onSave: persistAnswer });
 
   function handleAnswerChange(controlId: string, value: AnswersMap[string]) {
     setAnswers((prev) => ({ ...prev, [controlId]: value }));
@@ -188,13 +186,7 @@ export function AssessmentAnswerForm({
     setSubmitError(null);
     setSubmitting(true);
     try {
-      const pending = Object.entries(pendingValues.current);
-      for (const [controlId] of pending) {
-        clearTimeout(saveTimers.current[controlId]);
-      }
-      const saved = await Promise.all(
-        pending.map(([controlId, value]) => persistAnswer(controlId, value)),
-      );
+      const saved = await flushAnswers();
       if (saved.some((result) => !result)) {
         setSubmitError(
           "Some answers could not be saved. Retry them before submitting.",
@@ -291,6 +283,21 @@ export function AssessmentAnswerForm({
               className="space-y-3 rounded-lg border bg-card p-5"
             >
               <QuestionLabel question={question} />
+              {assessmentStatus === "changes_requested" ? (
+                <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                  <p className="font-medium">
+                    {reviewByControl[question.control_id]?.review_status ===
+                    "compliant"
+                      ? "✓ Compliant — locked"
+                      : "Changes requested"}
+                  </p>
+                  {reviewByControl[question.control_id]?.reviewer_note ? (
+                    <p className="text-muted-foreground mt-1">
+                      {reviewByControl[question.control_id]?.reviewer_note}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               {question.type !== "file" ? (
                 <QuestionRenderer
                   question={question}
@@ -298,7 +305,12 @@ export function AssessmentAnswerForm({
                   onChange={(value) =>
                     handleAnswerChange(question.control_id, value)
                   }
-                  disabled={isReadOnly}
+                  disabled={
+                    isReadOnly ||
+                    (assessmentStatus === "changes_requested" &&
+                      reviewByControl[question.control_id]?.review_status !==
+                        "non_compliant")
+                  }
                   size="portal"
                 />
               ) : null}
@@ -354,7 +366,12 @@ export function AssessmentAnswerForm({
                 accept={question.evidence?.accept}
                 required={question.evidence?.required ?? false}
                 evidence={evidenceByControl[question.control_id] ?? []}
-                disabled={isReadOnly}
+                disabled={
+                  isReadOnly ||
+                  (assessmentStatus === "changes_requested" &&
+                    reviewByControl[question.control_id]?.review_status !==
+                      "non_compliant")
+                }
                 onUploaded={(item) =>
                   handleEvidenceUploaded(
                     question.control_id,

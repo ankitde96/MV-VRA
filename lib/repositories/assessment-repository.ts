@@ -78,4 +78,11 @@ export class AssessmentRepository extends TenantRepository<AssessmentDoc> {
   findByIdInSession(id: string | Types.ObjectId, session: ClientSession) {
     return this.findById(id).session(session);
   }
+
+  touchActivity(id: string | Types.ObjectId, at = new Date()) {
+    return this.updateOne(
+      { _id: toObjectId(id) } as QueryFilter<AssessmentDoc>,
+      { $set: { last_activity_at: at } } as UpdateQuery<AssessmentDoc>,
+    );
+  }
 }

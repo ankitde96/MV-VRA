@@ -122,6 +122,8 @@ export interface ReviewerQuestionItem {
   section_title: string;
   is_required: boolean;
   response_value: unknown;
+  review_status: "compliant" | "non_compliant" | null;
+  reviewer_note: string;
   evidence: Array<{
     id: string;
     filename: string;
@@ -233,12 +235,18 @@ export class AssessmentReviewService {
 
         const controlRisks = risksByControl.get(q.control_id) ?? [];
 
-        // Determine control status
+        // Explicit Stage 5 verdict supersedes the legacy inferred flags when present.
         let controlStatus: ReviewerQuestionItem["control_status"] = "passed";
         if (isSuppressed) {
           controlStatus = "suppressed";
         } else if (q.required && !hasAnswer) {
           controlStatus = "missing";
+        } else if (resp?.review_status === "non_compliant") {
+          controlStatus = "failed";
+          failedCount++;
+        } else if (resp?.review_status === "compliant") {
+          controlStatus = "passed";
+          passedCount++;
         } else if (resp?.has_exception) {
           controlStatus = "exception";
           exceptionCount++;
@@ -246,6 +254,8 @@ export class AssessmentReviewService {
           controlStatus = "failed";
           failedCount++;
         } else if (hasAnswer) {
+          passedCount++;
+        } else {
           passedCount++;
         }
 
@@ -279,6 +289,8 @@ export class AssessmentReviewService {
           section_title: section.title,
           is_required: q.required,
           response_value: resp?.response_value ?? null,
+          review_status: resp?.review_status ?? null,
+          reviewer_note: resp?.reviewer_note ?? "",
           evidence: (resp?.evidence ?? []).map((e) => ({
             id: e._id!.toString(),
             filename: e.filename,
@@ -355,6 +367,130 @@ export class AssessmentReviewService {
     };
   }
 
+  async markResponseReview(
+    assessmentId: string,
+    controlId: string,
+    input: {
+      review_status: "compliant" | "non_compliant";
+      reviewer_note?: string;
+    },
+    actorId: string,
+  ) {
+    const assessment = await this.assessmentRepo.findById(assessmentId).lean();
+    if (!assessment)
+      throw new NotFoundError(`Assessment not found: ${assessmentId}`);
+    assertAssessmentNotArchived(assessment.status);
+    if (!["submitted", "under_review"].includes(assessment.status)) {
+      throw new ForbiddenError("Only submitted assessments can be reviewed");
+    }
+    const schema = assessment.template_snapshot as QuestionsSchema;
+    const question = schema.sections
+      .flatMap((section) => section.questions)
+      .find((item) => item.control_id === controlId);
+    if (!question)
+      throw new ValidationError(`Unknown control_id: ${controlId}`);
+    await this.responseRepo.ensureShell(assessmentId, controlId, question.text);
+    const response = await this.responseRepo.markReview(
+      assessmentId,
+      controlId,
+      {
+        review_status: input.review_status,
+        reviewer_note: input.reviewer_note?.trim() ?? "",
+        reviewed_by: toObjectId(actorId),
+        review_round: assessment.review_round ?? 0,
+      },
+    );
+    const at = new Date();
+    await this.assessmentRepo.updateOne(
+      { _id: assessment._id },
+      { $set: { status: "under_review", last_activity_at: at } },
+    );
+    await recordAuditEvent({
+      workspace_id: toObjectId(this.ctx.workspaceId),
+      actor: { type: "internal", id: toObjectId(actorId), email: null },
+      action: "assessment.response_reviewed",
+      entity_type: "Response",
+      entity_id: response!._id,
+      diff: {
+        control_id: controlId,
+        review_status: input.review_status,
+        review_round: assessment.review_round ?? 0,
+      },
+    });
+    return response;
+  }
+
+  async resendQuestionnaire(assessmentId: string, actorId: string) {
+    const assessment = await this.assessmentRepo.findById(assessmentId).lean();
+    if (!assessment)
+      throw new NotFoundError(`Assessment not found: ${assessmentId}`);
+    assertAssessmentNotArchived(assessment.status);
+    if (!["submitted", "under_review"].includes(assessment.status)) {
+      throw new ForbiddenError(
+        "Only submitted assessments can be returned to the vendor",
+      );
+    }
+    const responses = await this.responseRepo
+      .findByAssessment(assessmentId)
+      .lean();
+    const nonCompliant = responses.filter(
+      (response) => response.review_status === "non_compliant",
+    );
+    if (nonCompliant.length === 0) {
+      throw new ValidationError(
+        "Mark at least one response non-compliant before resending",
+      );
+    }
+    const at = new Date();
+    const updated = await this.assessmentRepo.updateOne(
+      { _id: assessment._id, status: { $in: ["submitted", "under_review"] } },
+      {
+        $set: {
+          status: "changes_requested",
+          resent_by: toObjectId(actorId),
+          resent_at: at,
+          last_activity_at: at,
+        },
+        $inc: { review_round: 1 },
+      },
+    );
+    if (updated.matchedCount === 0) {
+      throw new ForbiddenError(
+        "The assessment changed before it could be returned to the vendor",
+      );
+    }
+    await recordAuditEvent({
+      workspace_id: toObjectId(this.ctx.workspaceId),
+      actor: { type: "internal", id: toObjectId(actorId), email: null },
+      action: "assessment.changes_requested",
+      entity_type: "Assessment",
+      entity_id: assessment._id,
+      diff: {
+        review_round: (assessment.review_round ?? 0) + 1,
+        controls: nonCompliant.map((response) => response.control_id),
+      },
+    });
+    const vendor = await this.vendorRepo.findById(assessment.vendor_id).lean();
+    const recipientSet = new Set(assessment.recipients.map(String));
+    const recipients =
+      vendor?.spocs.filter((spoc) => recipientSet.has(String(spoc._id))) ?? [];
+    await Promise.all(
+      recipients.map((spoc) =>
+        getMailer().send({
+          to: spoc.email,
+          subject: `Changes requested: ${assessment.template_name ?? "Vendor assessment"}`,
+          text: nonCompliant
+            .map(
+              (response) =>
+                `${response.control_id}: ${response.reviewer_note || "Please revise this response."}`,
+            )
+            .join("\n"),
+        }),
+      ),
+    );
+    return { ok: true, status: "changes_requested" as const };
+  }
+
   /**
    * Raises an Identified Risk against a control in an assessment.
    * DECISIONS.md 008: `risk.residual_score` is authoritative and computed on write.
@@ -419,8 +555,13 @@ export class AssessmentReviewService {
       0,
     );
 
-    const updatePayload: { overall_score: number; status?: string } = {
+    const updatePayload: {
+      overall_score: number;
+      last_activity_at: Date;
+      status?: string;
+    } = {
       overall_score: newOverallScore,
+      last_activity_at: new Date(),
     };
     if (assessment.status === "submitted") {
       updatePayload.status = "under_review";
@@ -523,7 +664,9 @@ export class AssessmentReviewService {
 
     await this.assessmentRepo.updateOne(
       { _id: risk.assessment_id },
-      { $set: { overall_score: newOverallScore } },
+      {
+        $set: { overall_score: newOverallScore, last_activity_at: new Date() },
+      },
     );
 
     await recordAuditEvent({
@@ -819,6 +962,46 @@ export class AssessmentReviewService {
     if (!assessment) {
       throw new NotFoundError(`Assessment not found: ${assessmentId}`);
     }
+    assertAssessmentNotArchived(assessment.status);
+    if (!["submitted", "under_review"].includes(assessment.status)) {
+      throw new ForbiddenError("Only submitted assessments can be completed");
+    }
+    const [responses, risks] = await Promise.all([
+      this.responseRepo.findByAssessment(assessmentId).lean(),
+      this.riskRepo.find({ assessment_id: assessment._id }).lean(),
+    ]);
+    const schema = assessment.template_snapshot as QuestionsSchema;
+    const answers = Object.fromEntries(
+      responses.map((response) => [
+        response.control_id,
+        response.response_value,
+      ]),
+    ) as AnswersMap;
+    const visibility = computeVisibility(schema, answers);
+    const responseByControl = new Map(
+      responses.map((response) => [response.control_id, response]),
+    );
+    const riskControls = new Set(risks.map((risk) => risk.control_id));
+    const unmarked: string[] = [];
+    const withoutRisk: string[] = [];
+    for (const question of schema.sections.flatMap(
+      (section) => section.questions,
+    )) {
+      if (!visibility.get(question.control_id)) continue;
+      const verdict = responseByControl.get(question.control_id)?.review_status;
+      if (!verdict) unmarked.push(question.control_id);
+      else if (
+        verdict === "non_compliant" &&
+        !riskControls.has(question.control_id)
+      ) {
+        withoutRisk.push(question.control_id);
+      }
+    }
+    if (unmarked.length || withoutRisk.length) {
+      throw new ValidationError(
+        `Review incomplete — unmarked: ${unmarked.join(", ") || "none"}; non-compliant without risk: ${withoutRisk.join(", ") || "none"}`,
+      );
+    }
 
     // Additive, UI Revamp Round 2 (DECISIONS.md 029) — next_review_due drives the
     // "reassessment overdue" KRI. Derived from the vendor's current tier and the
@@ -853,6 +1036,7 @@ export class AssessmentReviewService {
           status: "completed",
           reviewed_at: reviewedAt,
           next_review_due: nextReviewDue,
+          last_activity_at: reviewedAt,
         },
       },
     );

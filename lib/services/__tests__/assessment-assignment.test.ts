@@ -171,6 +171,36 @@ describe("assignAssessment (integration)", () => {
     );
   });
 
+  it("refuses recipients that are not active SPOCs of the assessment vendor", async () => {
+    await dbConnect();
+    const vendor = await createVendor(workspaceId, "invalid-recipient.example");
+    const engagement = await createEngagement(workspaceId, vendor._id);
+    const template = await createTemplate(
+      workspaceId,
+      "published",
+      "invalid-recipient",
+    );
+    const draft = await assignAssessment(
+      { workspaceId },
+      { userId: actorId.toString() },
+      {
+        vendorId: vendor._id.toString(),
+        engagementId: engagement._id.toString(),
+        templateId: template._id.toString(),
+      },
+    );
+
+    await expect(
+      sendAssessment(
+        { workspaceId },
+        { userId: actorId.toString() },
+        draft._id.toString(),
+        { spocIds: [new Types.ObjectId().toString()] },
+      ),
+    ).rejects.toThrow(ValidationError);
+    expect((await Assessment.findById(draft._id))?.status).toBe("draft");
+  });
+
   afterAll(async () => {
     await mongoose.disconnect();
   });

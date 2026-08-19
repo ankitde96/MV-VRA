@@ -118,4 +118,26 @@ export class ResponseRepository extends TenantRepository<ResponseDoc> {
       } as UpdateQuery<ResponseDoc>,
     );
   }
+
+  markReview(
+    assessmentId: string | Types.ObjectId,
+    controlId: string,
+    input: {
+      review_status: "compliant" | "non_compliant";
+      reviewer_note: string;
+      reviewed_by: Types.ObjectId;
+      review_round: number;
+    },
+  ) {
+    return this.model.findOneAndUpdate(
+      this.scope({
+        assessment_id: toObjectId(assessmentId),
+        control_id: controlId,
+      } as QueryFilter<ResponseDoc>),
+      {
+        $set: { ...input, reviewed_at: new Date() },
+      } as UpdateQuery<ResponseDoc>,
+      { returnDocument: "after" },
+    );
+  }
 }

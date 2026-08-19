@@ -59,7 +59,13 @@ describe("portal assessment answering (integration)", () => {
   const templateId = new Types.ObjectId();
 
   async function createAssessment(
-    status: "sent" | "in_progress" | "submitted" | "draft" = "sent",
+    status:
+      | "sent"
+      | "in_progress"
+      | "submitted"
+      | "draft"
+      | "changes_requested" = "sent",
+    recipients: Types.ObjectId[] = [],
   ) {
     return Assessment.create({
       workspace_id: workspaceId,
@@ -70,6 +76,7 @@ describe("portal assessment answering (integration)", () => {
       template_snapshot: schema,
       status,
       assigned_at: new Date(),
+      recipients,
     });
   }
 
@@ -77,6 +84,22 @@ describe("portal assessment answering (integration)", () => {
     vendorId: vendorId.toString(),
     workspaceId: workspaceId.toString(),
     spocId: spocId.toString(),
+  });
+
+  it("refuses writes to a compliant control during a correction round", async () => {
+    await dbConnect();
+    const assessment = await createAssessment("changes_requested");
+    await Response.create({
+      workspace_id: workspaceId,
+      assessment_id: assessment._id,
+      control_id: "Q1",
+      question_text: "Q1?",
+      response_value: "approved",
+      review_status: "compliant",
+    });
+    await expect(
+      saveResponse(session(), assessment._id.toString(), "Q1", "changed"),
+    ).rejects.toThrow(ForbiddenError);
   });
   const otherVendorSession = () => ({
     vendorId: otherVendorId.toString(),
@@ -110,6 +133,23 @@ describe("portal assessment answering (integration)", () => {
     });
     expect(stored).toHaveLength(1);
     expect(stored[0].response_value).toBe("second");
+    expect(
+      (await Assessment.findById(assessment._id))?.last_activity_at,
+    ).toBeInstanceOf(Date);
+  });
+
+  it("lists and opens only assessments addressed to the signed-in SPOC", async () => {
+    await dbConnect();
+    const included = await createAssessment("sent", [spocId]);
+    const excluded = await createAssessment("sent", [otherSpocId]);
+
+    const listed = await listVendorAssessments(session());
+    expect(listed.map((assessment) => assessment._id.toString())).toEqual([
+      included._id.toString(),
+    ]);
+    await expect(
+      getAssessmentForAnswering(session(), excluded._id.toString()),
+    ).rejects.toThrow(NotFoundError);
   });
 
   it("rejects saving an answer for an unknown control_id", async () => {

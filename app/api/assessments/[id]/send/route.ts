@@ -27,6 +27,14 @@ export const POST = withRouteErrors(
       id,
       { spocIds: body.data.spoc_ids },
     );
-    return NextResponse.json({ assessment });
+    return NextResponse.json({
+      assessment: {
+        id: assessment?._id.toString(),
+        status: assessment?.status,
+        recipients: assessment?.recipients.map(String),
+        sent_at: assessment?.sent_at?.toISOString() ?? null,
+        due_date: assessment?.due_date?.toISOString() ?? null,
+      },
+    });
   },
 );

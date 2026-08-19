@@ -82,7 +82,6 @@ test.describe("mobile draft checklist editor", () => {
     if (engagementId) {
       await Engagement.deleteOne({ _id: engagementId });
     }
-    await mongoose.disconnect();
   });
 
   test("adds, edits, saves, and deletes a question without horizontal overflow", async ({

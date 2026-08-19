@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { RaiseRiskDialog } from "@/components/risks/raise-risk-dialog";
 import {
   SeverityBadge,
@@ -13,6 +14,7 @@ import {
 } from "@/components/domain/severity-badge";
 import { StatusBadge } from "@/components/domain/status-badge";
 import type { ReviewerQuestionItem } from "@/lib/services/assessment-review";
+import { useDebouncedAutosave } from "@/hooks/use-debounced-autosave";
 
 interface AssessmentReviewClientProps {
   initialData: {
@@ -111,6 +113,60 @@ export function AssessmentReviewClient({
   const [dialogTitle, setDialogTitle] = useState("");
   const [dialogDescription, setDialogDescription] = useState("");
   const [completing, setCompleting] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [savedAtByControl, setSavedAtByControl] = useState<
+    Record<string, Date>
+  >({});
+  const [saveErrors, setSaveErrors] = useState<Record<string, boolean>>({});
+  const [verdicts, setVerdicts] = useState(() =>
+    Object.fromEntries(
+      questions.map((question) => [
+        question.control_id,
+        question.review_status,
+      ]),
+    ),
+  );
+  const [reviewerNotes, setReviewerNotes] = useState(() =>
+    Object.fromEntries(
+      questions.map((question) => [
+        question.control_id,
+        question.reviewer_note,
+      ]),
+    ),
+  );
+  const persistVerdict = useCallback(
+    async (
+      controlId: string,
+      review: {
+        review_status: "compliant" | "non_compliant";
+        reviewer_note: string;
+      },
+    ) => {
+      const response = await fetch(
+        `/api/assessments/${assessment.id}/responses/${controlId}/review`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(review),
+        },
+      );
+      setSaveErrors((current) => ({ ...current, [controlId]: !response.ok }));
+      if (response.ok) {
+        setSavedAtByControl((current) => ({
+          ...current,
+          [controlId]: new Date(),
+        }));
+      } else {
+        toast.error("The review verdict could not be saved.");
+      }
+      return response.ok;
+    },
+    [assessment.id],
+  );
+  const { schedule: scheduleVerdict, flush: flushVerdicts } =
+    useDebouncedAutosave({
+      onSave: persistVerdict,
+    });
 
   const isCompleted = assessment.status === "completed";
 
@@ -126,6 +182,7 @@ export function AssessmentReviewClient({
   async function handleCompleteReview() {
     setCompleting(true);
     try {
+      if ((await flushVerdicts()).some((saved) => !saved)) return;
       const res = await fetch(
         `/api/assessments/${assessment.id}/complete-review`,
         {
@@ -143,6 +200,36 @@ export function AssessmentReviewClient({
       toast.error("Something went wrong. Please try again.");
     } finally {
       setCompleting(false);
+    }
+  }
+
+  function saveVerdict(
+    controlId: string,
+    reviewStatus: "compliant" | "non_compliant",
+  ) {
+    setVerdicts((current) => ({ ...current, [controlId]: reviewStatus }));
+    scheduleVerdict(controlId, {
+      review_status: reviewStatus,
+      reviewer_note: reviewerNotes[controlId] ?? "",
+    });
+  }
+
+  async function handleResend() {
+    setResending(true);
+    try {
+      if ((await flushVerdicts()).some((saved) => !saved)) return;
+      const response = await fetch(`/api/assessments/${assessment.id}/resend`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        toast.error(body?.message ?? "Could not return the questionnaire.");
+        return;
+      }
+      toast.success("Questionnaire returned to the vendor.");
+      router.refresh();
+    } finally {
+      setResending(false);
     }
   }
 
@@ -195,9 +282,18 @@ export function AssessmentReviewClient({
           </div>
 
           {!isCompleted ? (
-            <Button onClick={handleCompleteReview} disabled={completing}>
-              {completing ? "Completing…" : "Complete Review"}
-            </Button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={handleResend}
+                disabled={resending}
+              >
+                {resending ? "Returning…" : "Request changes"}
+              </Button>
+              <Button onClick={handleCompleteReview} disabled={completing}>
+                {completing ? "Completing…" : "Complete Review"}
+              </Button>
+            </div>
           ) : (
             <Button variant="outline" disabled>
               Review Completed
@@ -400,6 +496,70 @@ export function AssessmentReviewClient({
                         </Button>
                       ) : null}
                     </div>
+
+                    {!q.is_suppressed && !isCompleted ? (
+                      <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant={
+                              verdicts[q.control_id] === "compliant"
+                                ? "default"
+                                : "outline"
+                            }
+                            onClick={() =>
+                              saveVerdict(q.control_id, "compliant")
+                            }
+                          >
+                            Compliant
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={
+                              verdicts[q.control_id] === "non_compliant"
+                                ? "destructive"
+                                : "outline"
+                            }
+                            onClick={() =>
+                              saveVerdict(q.control_id, "non_compliant")
+                            }
+                          >
+                            Non-compliant
+                          </Button>
+                        </div>
+                        <Textarea
+                          value={reviewerNotes[q.control_id] ?? ""}
+                          placeholder="Explain what the vendor should change"
+                          onChange={(event) => {
+                            const reviewerNote = event.target.value;
+                            setReviewerNotes((current) => ({
+                              ...current,
+                              [q.control_id]: reviewerNote,
+                            }));
+                            const verdict = verdicts[q.control_id];
+                            if (verdict) {
+                              scheduleVerdict(q.control_id, {
+                                review_status: verdict,
+                                reviewer_note: reviewerNote,
+                              });
+                            }
+                          }}
+                        />
+                        {saveErrors[q.control_id] ? (
+                          <p className="text-destructive text-[11px]">
+                            Save failed. Change the verdict or note to retry.
+                          </p>
+                        ) : savedAtByControl[q.control_id] ? (
+                          <p className="text-muted-foreground text-[11px]">
+                            Saved{" "}
+                            {savedAtByControl[q.control_id].toLocaleTimeString(
+                              [],
+                              { hour: "2-digit", minute: "2-digit" },
+                            )}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     {/* Vendor Answer */}
                     <div className="bg-muted/20 space-y-1 rounded border p-2">
