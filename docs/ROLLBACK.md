@@ -34,6 +34,32 @@ For anything smaller, `git diff` and `git restore` are sufficient.
 Overwrite this block at the start of each risky change. One at a time.
 
 ```
+Assessment workflow revamp — Stage 3: draft assessments and per-vendor checklist editing
+(2026-08-19, DONE). See docs/ASSESSMENT-WORKFLOW-PLAN.md Stage 3.
+
+Safe baseline: a77b01e (local main, Stage 2 commit).
+
+Additive schema change: Assessment.template_name. Assignment changes from sent to draft,
+leaves due_date null, and no longer advances the engagement; existing assessments are not
+migrated. Draft snapshot edits are guarded structurally by a repository query containing
+status: "draft" and remain workspace-scoped. Portal list/detail reads explicitly conceal
+drafts with the same not-found boundary used for cross-vendor access. New checklist route
+uses assessment.assign and validates both Zod shape and no-forward-reference structure.
+Checklist PATCH carries `expected_updated_at` as an optimistic-concurrency token and
+refuses stale editors instead of silently overwriting newer work.
+
+Verified: `npm run verify` passed (29 files, 218 tests, production build); `npm run
+test:e2e` passed 17 tests across desktop Chromium and Pixel 7 with one intentional
+desktop skip for the mobile-only checklist journey; the disposable real-HTTP walkthrough
+passed assignment, portal concealment, add/edit/delete, template isolation, clean second
+assignment, and sent-write refusal, then removed all created records.
+
+Reversible by restoring the Stage 3 files to a77b01e. No destructive data operation or
+migration is involved. Assessments created while Stage 3 is deployed remain valid draft
+records if code is reverted, but the old UI will not send them; either redeploy Stage 3 or
+remove disposable drafts explicitly after confirming their ids.
+
+Prior active plan (closed):
 Assessment workflow revamp — Stage 2: multiple Vendor SPOCs (2026-08-19, DONE).
 ⚠ AUTH-TOUCHING (CONSTRAINTS.md #2) — its own request, own plan, below.
 See docs/ASSESSMENT-WORKFLOW-PLAN.md Stage 2, DECISIONS.md 040/042,

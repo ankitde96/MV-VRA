@@ -7,6 +7,7 @@ import {
 import { Assessment, type AssessmentDoc } from "@/lib/db/models/assessment";
 import { TenantRepository } from "./base";
 import { toObjectId, type TenantContext } from "@/lib/tenant/context";
+import type { QuestionsSchema } from "@/lib/questionnaire/schema";
 
 /**
  * PLAN.md Phase 6. Read on both sides of the tenant boundary: the internal vendor-detail
@@ -35,5 +36,26 @@ export class AssessmentRepository extends TenantRepository<AssessmentDoc> {
       { $set: { status: "archived" } } as UpdateQuery<AssessmentDoc>,
       opts,
     );
+  }
+
+  updateDraftSnapshot(
+    id: string | Types.ObjectId,
+    snapshot: QuestionsSchema,
+    expectedUpdatedAt: Date,
+    opts?: { session?: ClientSession },
+  ) {
+    return this.updateOne(
+      {
+        _id: toObjectId(id),
+        status: "draft",
+        updated_at: expectedUpdatedAt,
+      } as QueryFilter<AssessmentDoc>,
+      { $set: { template_snapshot: snapshot } } as UpdateQuery<AssessmentDoc>,
+      opts,
+    );
+  }
+
+  findByIdInSession(id: string | Types.ObjectId, session: ClientSession) {
+    return this.findById(id).session(session);
   }
 }

@@ -170,11 +170,12 @@ Published documents are immutable. Enforced in the repository (no update path wh
 | Field                                               | Type    | Notes                                                                                            |
 | --------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------ |
 | `_id`, `workspace_id`, `engagement_id`, `vendor_id` |         |                                                                                                  |
-| `template_id`, `template_version`                   |         | provenance reference                                                                             |
-| **`template_snapshot`**                             | object  | **frozen copy of `questions_schema`**                                                            |
+| `template_id`, `template_version`, `template_name`  |         | provenance reference and join-free history label                                                 |
+| **`template_snapshot`**                             | object  | per-assessment copy, editable only while `draft`; frozen on send                                 |
 | `status`                                            | enum    | `draft` \| `sent` \| `in_progress` \| `submitted` \| `under_review` \| `completed` \| `archived` |
 | `overall_score`                                     | number? | **derived**, recomputed from constituent risks                                                   |
 | `assigned_at`, `submitted_at`, `reviewed_at`        | Date    |                                                                                                  |
+| `due_date`                                          | Date?   | null for drafts; Stage 4 stamps it when sent                                                     |
 
 Indexes: `{ workspace_id: 1, engagement_id: 1 }` · `{ workspace_id: 1, status: 1 }` ·
 `{ workspace_id: 1, vendor_id: 1, status: 1 }`

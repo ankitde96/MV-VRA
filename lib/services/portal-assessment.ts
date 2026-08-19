@@ -31,6 +31,17 @@ import type { PortalSessionPayload } from "@/lib/auth/portal-session";
 // nicety; this is the actual boundary.
 const EDITABLE_STATUSES = new Set(["sent", "in_progress"]);
 
+export async function listVendorAssessments(session: PortalSessionPayload) {
+  await dbConnect();
+  const assessmentRepo = new AssessmentRepository({
+    workspaceId: session.workspaceId,
+  });
+  return assessmentRepo
+    .find({ vendor_id: session.vendorId, status: { $ne: "draft" } })
+    .sort({ assigned_at: -1 })
+    .lean();
+}
+
 async function getVendorAssessment(
   session: PortalSessionPayload,
   assessmentId: string,
@@ -42,7 +53,11 @@ async function getVendorAssessment(
   const assessment = await assessmentRepo.findById(assessmentId);
   // Not found and "belongs to a different vendor" return the identical error — a vendor
   // probing assessment ids can't distinguish "doesn't exist" from "not yours."
-  if (!assessment || assessment.vendor_id.toString() !== session.vendorId) {
+  if (
+    !assessment ||
+    assessment.status === "draft" ||
+    assessment.vendor_id.toString() !== session.vendorId
+  ) {
     throw new NotFoundError(`Assessment ${assessmentId} not found`);
   }
   return assessment;

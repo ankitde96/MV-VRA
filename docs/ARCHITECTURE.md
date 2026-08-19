@@ -27,6 +27,14 @@
 
 ---
 
+**Assessment workflow revamp (2026-08-19):** Stages 1–2 are complete. Stage 3 is implemented
+but its full verification gates remain pending. Assignment now creates a draft; internal
+users tailor only its per-assessment snapshot through a shared question editor. Checklist
+writes are workspace-scoped, draft- and `updated_at`-guarded, and transactional with their
+audit event. The portal service conceals drafts from lists and direct reads. See
+`docs/features/assessment-workflow-stage-3-draft-checklists.md`; do not treat Stage 3 as
+complete until its full verify, HTTP, and browser gates are recorded there.
+
 ## 1. What this system is
 
 **MV-VRA** (MoneyView Vendor Risk Assessment) is a centralized system of record for
@@ -57,7 +65,7 @@ contract/SLA tracking, and third-party integrations (spec §4).
 - **Internal — Risk/Admin team.** Configures templates, reviews assessments, owns the risk
   register, runs offboarding.
 - **Internal — Business owner.** Submits vendor intake requests.
-- **External — Vendor SPOC.** One named contact per vendor. Authenticates by Email OTP,
+- **External — Vendor SPOC.** One of one-or-more named contacts per vendor. Authenticates by Email OTP,
   answers questionnaires, uploads evidence. Sees only their own vendor's data.
 
 ## 4. Module map
@@ -69,7 +77,7 @@ contract/SLA tracking, and third-party integrations (spec §4).
 │  ├── Intake forms ✅ BUILT            └── Vendor Portal ✅ BUILT     │
 │  ├── Vendor inventory ✅ BUILT              ├── OTP login ✅ BUILT   │
 │  ├── Vendor detail (SPOC, docs,             ├── Answer + branch +   │
-│  │   assign assessment) ✅ BUILT           │   upload ✅ BUILT       │
+│  │   draft questionnaire editor) ✅ BUILT  │   upload ✅ BUILT       │
 │  ├── Template builder ✅ BUILT             └── Submit ✅ BUILT       │
 │  ├── Assessment review ✅ BUILT                                     │
 │  ├── Risk register ✅ BUILT                                         │
@@ -88,7 +96,7 @@ contract/SLA tracking, and third-party integrations (spec §4).
 │  ├── Tiering & Triage ✅ BUILT       rules-based routing            │
 │  ├── Questionnaire Engine ✅ BUILT   conditional logic, versioned   │
 │  │   lib/questionnaire/*.ts          templates (Phase 5)           │
-│  ├── Assessment assignment ✅ BUILT  template_snapshot at assign    │
+│  ├── Assessment draft/edit ✅ BUILT  snapshot clone + guarded edit   │
 │  │   lib/services/                   time (Phase 6)                │
 │  │   assessment-assignment.ts                                     │
 │  ├── OTP portal auth ✅ BUILT        enumeration-resistant, single- │

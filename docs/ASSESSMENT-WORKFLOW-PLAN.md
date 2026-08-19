@@ -5,8 +5,8 @@
 > `UI-REVAMP-2-PLAN.md`. Produced with the `brainstorming` skill on 2026-08-19; decisions
 > D1–D8 below were confirmed by the project owner before any design was written.
 >
-> **STATUS: PLANNED — NO CODE WRITTEN (2026-08-19).** Nothing in this document is built.
-> Each stage below must be implemented and verified separately; a stage is not done until
+> **STATUS: IN PROGRESS (2026-08-19).** Stages 1–3 are implemented and verified; Stages 4–5
+> remain. Each stage must be implemented and verified separately; a stage is not done until
 > `TEST-CHECKLIST.md`'s gates pass with real pasted output.
 
 ---

@@ -31,6 +31,7 @@ const assessmentSchema = new Schema(
       required: true,
     },
     template_version: { type: Number, required: true },
+    template_name: { type: String, default: null },
     template_snapshot: { type: Schema.Types.Mixed, required: true },
     status: {
       type: String,
@@ -53,8 +54,9 @@ const assessmentSchema = new Schema(
     submitted_at: { type: Date, default: null },
     reviewed_at: { type: Date, default: null },
     // Additive, UI Revamp Round 2 (DECISIONS.md 028/029) — analytics-only fields, no
-    // existing writer or reader depended on their absence. due_date is set at assignment
-    // from Workspace.settings.assessment_response_sla_days; next_review_due is derived from
+    // existing writer or reader depended on their absence. Stage 3 leaves due_date null at
+    // assignment; Stage 4 sets it on send from Workspace.settings.
+    // assessment_response_sla_days. next_review_due is derived from
     // the vendor's tier cadence and stamped in completeReview(). Both null on assessments
     // created before this phase and on any assessment never reaching that step — analytics
     // reading these fields must treat null as "unknown", never default it to another date.

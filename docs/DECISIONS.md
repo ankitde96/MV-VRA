@@ -23,6 +23,39 @@
 
 ---
 
+## [2026-08-19] 043 — Draft checklist edits are transactional and structurally immutable
+
+**Decision:** Assignment creates a `draft` assessment without starting the response SLA or
+advancing the engagement. Tailoring replaces only that assessment's snapshot, and the
+repository write itself filters `status: "draft"`. The snapshot update and append-only audit
+event run in one MongoDB transaction. Portal list/detail access treats drafts as not found.
+Checklist saves also carry the assessment's last `updated_at`; the guarded update rejects a
+stale editor rather than silently replacing another editor's newer snapshot.
+
+**Context:** D1 in 040 selected the existing snapshot as the per-vendor customization
+boundary. Review identified that auditing after an untransactional update could leave an
+unexplained mutation, and that a portal query embedded in a React page put a security filter
+outside the service boundary.
+
+**Rationale:** A query guard closes the stale-reference race that a read-then-write check
+would retain. Sharing its session with the audit write makes the compliance record atomic.
+Service-owned portal filtering keeps workspace/vendor/draft boundaries testable without UI.
+The existing timestamp is a sufficient optimistic-concurrency token because every checklist
+write updates it and Stage 3 has exactly one snapshot-writing operation.
+
+**Alternatives rejected:** service-only draft check — race-prone; page-owned list query —
+duplicates a security boundary; cloning the template builder — would let editors diverge.
+
+**Consequences:** Stage 4 must perform the send-time SLA and engagement transitions. The
+template and assessment editors share `QuestionEditor` and builder-state serialization.
+Clients must reload after a stale-save response before attempting another edit.
+
+**Decided by:** Codex (GPT-5), implementing project-owner decision D1.
+
+**Supersedes / Superseded by:** Implements 040 D1; supersedes 019's immediate-send shortcut.
+
+---
+
 ## [2026-08-19] 040 — Assessment workflow revamp: eight design decisions taken before any code
 
 **Decision:** Eight decisions (D1–D8) governing the six-part assessment workflow change,

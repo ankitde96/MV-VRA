@@ -122,13 +122,16 @@ will use, so they cannot diverge.
    Only a `published` template may be assigned (`assignAssessment()`,
    `lib/services/assessment-assignment.ts`).
 2. **Risk Assessment** record created, pinned to `template_id` + `version`, with a
-   deep-cloned `template_snapshot` (`DATA-MODEL.md` §3 — "why snapshot rather than
-   reference"). Assignment sets `status: 'sent'` immediately, a stated simplification of
-   the spec's `draft/sent` pair (`DECISIONS.md` 019), and atomically moves the engagement
-   to `in_assessment` in the same transaction.
+   deep-cloned `template_snapshot` and `template_name` (`DATA-MODEL.md` §3 — "why snapshot
+   rather than reference"). Stage 3 creates it as `draft`, leaves `due_date` null, and does
+   not advance the engagement. Internal users may tailor that snapshot through the shared
+   question editor; the repository query itself permits updates only while status is draft,
+   and the update/audit pair is transactional (`DECISIONS.md` 043). Stage 4 will send it,
+   start the SLA, and advance the engagement.
 3. SPOC opens the assessment in the portal — `app/(portal)/portal/assessments/[id]/page.tsx`
    fetches via `getAssessmentForAnswering()` (`lib/services/portal-assessment.ts`,
-   vendor/workspace-scoped, 404 on tampering) and renders `template_snapshot` through
+   vendor/workspace-scoped, 404 on tampering or drafts; the portal list service also excludes
+   drafts) and renders `template_snapshot` through
    `AssessmentAnswerForm` (`components/portal/assessment-answer-form.tsx`), reusing the
    exact `question-renderer.tsx` the Phase 5 builder preview uses.
 4. **Dynamic Conditional Logic** shows/suppresses follow-ups live as the SPOC answers —

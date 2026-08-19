@@ -125,7 +125,7 @@ describe("offboarding service (integration)", () => {
 
   afterAll(async () => {
     await mongoose.disconnect();
-    await rm(resolve(process.cwd(), ".storage-local"), {
+    await rm(resolve(process.cwd(), ".storage-local", workspaceId.toString()), {
       recursive: true,
       force: true,
     });

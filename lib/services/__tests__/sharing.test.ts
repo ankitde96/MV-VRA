@@ -106,10 +106,13 @@ describe("sharing service (integration)", () => {
       _id: { $in: [ownerWorkspaceId, targetWorkspaceId, unrelatedWorkspaceId] },
     });
     await mongoose.disconnect();
-    await rm(resolve(process.cwd(), ".storage-local"), {
-      recursive: true,
-      force: true,
-    });
+    await rm(
+      resolve(process.cwd(), ".storage-local", ownerWorkspaceId.toString()),
+      {
+        recursive: true,
+        force: true,
+      },
+    );
   });
 
   it("grants a share and makes it visible to the target workspace but not an unrelated one", async () => {

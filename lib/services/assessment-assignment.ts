@@ -4,9 +4,13 @@ import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { AssessmentRepository } from "@/lib/repositories/assessment-repository";
 import { EngagementRepository } from "@/lib/repositories/engagement-repository";
 import { TemplateRepository } from "@/lib/repositories/template-repository";
-import { WorkspaceRepository } from "@/lib/repositories/workspace-repository";
 import { recordAuditEvent } from "@/lib/audit/record-event";
 import type { TenantContext } from "@/lib/tenant/context";
+import {
+  questionsSchemaSchema,
+  type QuestionsSchema,
+} from "@/lib/questionnaire/schema";
+import { validateQuestionsSchemaStructure } from "@/lib/questionnaire/validate-schema";
 
 /**
  * PLAN.md Phase 6 item 1, `FLOW.md` F3 step 1-2. `template_snapshot` is a deep-cloned copy
@@ -26,7 +30,6 @@ export async function assignAssessment(
   const engagementRepo = new EngagementRepository(ctx);
   const templateRepo = new TemplateRepository(ctx);
   const assessmentRepo = new AssessmentRepository(ctx);
-  const workspaceRepo = new WorkspaceRepository();
 
   const engagement = await engagementRepo.findById(input.engagementId);
   if (!engagement) {
@@ -48,12 +51,7 @@ export async function assignAssessment(
     );
   }
 
-  const workspace = await workspaceRepo.findById(ctx.workspaceId);
-  const slaDays = workspace?.settings?.assessment_response_sla_days ?? 21;
   const assignedAt = new Date();
-  const dueDate = new Date(
-    assignedAt.getTime() + slaDays * 24 * 60 * 60 * 1000,
-  );
 
   const session = await mongoose.startSession();
   try {
@@ -64,17 +62,12 @@ export async function assignAssessment(
           vendor_id: engagement.vendor_id,
           template_id: template._id,
           template_version: template.version,
+          template_name: template.name,
           template_snapshot: structuredClone(template.questions_schema),
-          status: "sent",
+          status: "draft",
           assigned_at: assignedAt,
-          due_date: dueDate,
+          due_date: null,
         },
-        { session },
-      );
-
-      await engagementRepo.updateOne(
-        { _id: engagement._id },
-        { $set: { status: "in_assessment" } },
         { session },
       );
 
@@ -101,6 +94,65 @@ export async function assignAssessment(
     });
 
     return assessment;
+  } finally {
+    await session.endSession();
+  }
+}
+
+export async function updateAssessmentChecklist(
+  ctx: TenantContext,
+  actor: { userId: string },
+  assessmentId: string,
+  questionsSchema: QuestionsSchema,
+  expectedUpdatedAt: Date,
+) {
+  await dbConnect();
+  const parsed = questionsSchemaSchema.parse(questionsSchema);
+  validateQuestionsSchemaStructure(parsed);
+
+  const assessmentRepo = new AssessmentRepository(ctx);
+  const session = await mongoose.startSession();
+  try {
+    return await session.withTransaction(async () => {
+      const result = await assessmentRepo.updateDraftSnapshot(
+        assessmentId,
+        parsed,
+        expectedUpdatedAt,
+        { session },
+      );
+      if (result.matchedCount === 0) {
+        const assessment = await assessmentRepo.findByIdInSession(
+          assessmentId,
+          session,
+        );
+        if (!assessment) {
+          throw new NotFoundError(`Assessment ${assessmentId} not found`);
+        }
+        throw new ForbiddenError(
+          assessment.status !== "draft"
+            ? "Only draft assessment checklists can be edited"
+            : "This checklist changed in another session. Reload before saving again.",
+        );
+      }
+
+      await recordAuditEvent(
+        {
+          workspace_id: new Types.ObjectId(ctx.workspaceId),
+          actor: {
+            type: "internal",
+            id: new Types.ObjectId(actor.userId),
+            email: null,
+          },
+          action: "assessment.checklist_updated",
+          entity_type: "assessment",
+          entity_id: new Types.ObjectId(assessmentId),
+          diff: { section_count: parsed.sections.length },
+        },
+        { session },
+      );
+
+      return assessmentRepo.findByIdInSession(assessmentId, session);
+    });
   } finally {
     await session.endSession();
   }
