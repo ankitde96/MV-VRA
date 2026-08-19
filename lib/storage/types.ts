@@ -15,6 +15,9 @@ export interface StorageDriver {
    * one directly (`CONSTRAINTS.md` #10).
    */
   list(prefix: string): Promise<string[]>;
-  /** Only called by the sweep script's explicit `--delete` pass — never by feature code. */
+  /**
+   * The sweep script's explicit `--delete` pass, and (since ASSESSMENT-WORKFLOW-PLAN.md
+   * Stage 1) `deleteEvidence()` removing a vendor's own mistaken upload.
+   */
   delete(key: string): Promise<void>;
 }

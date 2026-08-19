@@ -62,6 +62,16 @@ executive-rollup}.test.ts` (all integration, against a real MongoDB) — then cl
 > role-aware navigation, responsive rendering, vendor portal login, and recoverable OTP
 > failure behavior against a real Next.js server. It is intentionally separate from
 > `npm run verify` because it requires seeded development fixtures and browser binaries.
+>
+> **Assessment workflow revamp, Stage 1 (2026-08-19):** Gate 4's evidence-upload item is
+> updated — a question with no `evidence` config now accepts an optional upload (previously
+> refused), and evidence deletion exists for the first time
+> (`lib/services/__tests__/portal-assessment.test.ts`, extended). Verified by both
+> integration test and a real-HTTP-driven manual walkthrough against a disposable fixture
+> assessment — see
+> `docs/features/assessment-workflow-stage-1-evidence-upload.md` §9. The browser gate
+> (`npm run test:e2e`) could not be run in that session's sandbox (Chromium binary download
+> blocked by TLS interception) — reported as skipped, not silently omitted.
 
 ---
 

@@ -8,6 +8,7 @@ import { Assessment } from "@/lib/db/models/assessment";
 import { Response } from "@/lib/db/models/response";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import {
+  deleteEvidence,
   getEvidenceFile,
   saveResponse,
   submitAssessment,
@@ -169,16 +170,97 @@ describe("portal assessment answering (integration)", () => {
     ).rejects.toThrow(/Accepted file types/);
   });
 
-  it("rejects an evidence upload for a question with no evidence config", async () => {
+  it("accepts an optional evidence upload on a question with no evidence config (ASSESSMENT-WORKFLOW-PLAN.md Stage 1, D4)", async () => {
+    await dbConnect();
+    const assessment = await createAssessment();
+    const evidence = await uploadEvidence(
+      session(),
+      assessment._id.toString(),
+      "Q1",
+      {
+        filename: "proof.pdf",
+        mime: "application/pdf",
+        body: Buffer.from("x"),
+      },
+    );
+    expect(evidence.filename).toBe("proof.pdf");
+  });
+
+  it("still rejects a disallowed MIME type on a question with no evidence config", async () => {
     await dbConnect();
     const assessment = await createAssessment();
     await expect(
       uploadEvidence(session(), assessment._id.toString(), "Q1", {
-        filename: "proof.pdf",
-        mime: "application/pdf",
+        filename: "malware.exe",
+        mime: "application/x-msdownload",
         body: Buffer.from("x"),
       }),
-    ).rejects.toThrow(/does not accept/);
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it("deletes an evidence file, removing both the record and the stored bytes", async () => {
+    await dbConnect();
+    const assessment = await createAssessment();
+    const evidence = await uploadEvidence(
+      session(),
+      assessment._id.toString(),
+      "Q3",
+      {
+        filename: "proof.pdf",
+        mime: "application/pdf",
+        body: Buffer.from("pdf bytes"),
+      },
+    );
+
+    await deleteEvidence(
+      session(),
+      assessment._id.toString(),
+      "Q3",
+      evidence._id.toString(),
+    );
+
+    const stored = await Response.findOne({
+      assessment_id: assessment._id,
+      control_id: "Q3",
+    });
+    expect(stored?.evidence).toHaveLength(0);
+
+    await expect(
+      getEvidenceFile(
+        session(),
+        assessment._id.toString(),
+        "Q3",
+        evidence._id.toString(),
+      ),
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it("refuses to delete evidence on a submitted assessment", async () => {
+    await dbConnect();
+    const assessment = await createAssessment();
+    const evidence = await uploadEvidence(
+      session(),
+      assessment._id.toString(),
+      "Q3",
+      {
+        filename: "proof.pdf",
+        mime: "application/pdf",
+        body: Buffer.from("pdf bytes"),
+      },
+    );
+    await Assessment.updateOne(
+      { _id: assessment._id },
+      { $set: { status: "submitted" } },
+    );
+
+    await expect(
+      deleteEvidence(
+        session(),
+        assessment._id.toString(),
+        "Q3",
+        evidence._id.toString(),
+      ),
+    ).rejects.toThrow(ForbiddenError);
   });
 
   it("retrieves an uploaded evidence file byte-identically, refusing a wrong evidence id", async () => {

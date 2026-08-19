@@ -127,15 +127,15 @@ export async function uploadEvidence(
       `Unknown control_id "${controlId}" for this assessment`,
     );
   }
-  if (!question.evidence) {
-    throw new ValidationError(
-      `"${controlId}" does not accept an evidence upload`,
-    );
-  }
+  // ASSESSMENT-WORKFLOW-PLAN.md Stage 1 (D4): evidence upload is accepted on every
+  // question now, not only ones the template flags with an `evidence` object — the real
+  // seeded questionnaire never sets one. `validateUploadedFile()` below (MIME + size) is
+  // the sole file-type authority for a question with no `evidence` config; the accept-list
+  // check remains scoped to when the template author actually set one.
 
   validateUploadedFile({ mime: input.mime, size: input.body.byteLength });
 
-  const accept = question.evidence.accept;
+  const accept = question.evidence?.accept;
   if (accept?.length) {
     const extension = input.filename.split(".").pop()?.toLowerCase();
     if (!extension || !accept.map((a) => a.toLowerCase()).includes(extension)) {
@@ -184,6 +184,52 @@ export async function uploadEvidence(
   });
 
   return evidence;
+}
+
+/**
+ * ASSESSMENT-WORKFLOW-PLAN.md Stage 1 — no delete route existed before this; a vendor
+ * could upload but never remove a mistaken attachment. Deletes the record before the file
+ * (same fail-toward-orphan ordering as upload, DATA-MODEL.md §5, reversed): if the storage
+ * delete fails after the record is gone, `scripts/sweep-orphaned-evidence.ts` finds the
+ * leftover file — the safer failure mode than a record pointing at nothing.
+ */
+export async function deleteEvidence(
+  session: PortalSessionPayload,
+  assessmentId: string,
+  controlId: string,
+  evidenceId: string,
+) {
+  const assessment = await getEditableVendorAssessment(session, assessmentId);
+  const responseRepo = new ResponseRepository({
+    workspaceId: session.workspaceId,
+  });
+  const response = await responseRepo.findOneByControl(assessmentId, controlId);
+  const evidence = response?.evidence.find(
+    (e) => e._id?.toString() === evidenceId,
+  );
+  if (!evidence) {
+    throw new NotFoundError(`Evidence ${evidenceId} not found`);
+  }
+
+  await responseRepo.pullEvidence(assessmentId, controlId, evidenceId);
+
+  const storage = getStorageDriver();
+  await storage.delete(evidence.file_key);
+
+  await recordAuditEvent({
+    workspace_id: assessment.workspace_id,
+    actor: {
+      type: "vendor",
+      id: new Types.ObjectId(session.vendorId),
+      email: null,
+    },
+    action: "response.evidence_deleted",
+    entity_type: "response",
+    entity_id: assessment._id,
+    diff: { control_id: controlId, filename: evidence.filename },
+  });
+
+  return { ok: true as const };
 }
 
 export async function getEvidenceFile(

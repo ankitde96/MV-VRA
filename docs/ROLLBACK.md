@@ -34,6 +34,38 @@ For anything smaller, `git diff` and `git restore` are sufficient.
 Overwrite this block at the start of each risky change. One at a time.
 
 ```
+Assessment workflow revamp — Stage 1: evidence upload on every question (2026-08-19,
+DONE). See docs/ASSESSMENT-WORKFLOW-PLAN.md Stage 1,
+docs/features/assessment-workflow-stage-1-evidence-upload.md. Not auth-touching, no schema
+change — but touches more than one module (portal component, service, repository, two new
+routes), so a plan is filled per ROLLBACK.md's own trigger list. Verified: npm run verify
+green (209/209 tests, format/lint/typecheck/build all clean), plus a real-HTTP-driven
+manual walkthrough against a disposable fixture assessment (upload on a no-evidence-config
+question succeeded, byte-identical download, delete removed both record and file, required-
+evidence submit blocker unchanged, sweep script reported zero orphans throughout).
+npm run test:e2e could not run in this sandbox (Chromium binary download blocked by TLS
+interception, unrelated to this change) — flagged in HANDOVER.md, not silently skipped.
+
+Safe baseline: 2b72d13d914386fd977c44e44180ca72ecb17c69 (local main; not yet pushed to
+origin — see HANDOVER.md).
+
+Files being touched: components/portal/assessment-answer-form.tsx (drops the
+`question.evidence` render gate — EvidenceUpload always renders), lib/services/
+portal-assessment.ts (removes the "does not accept an evidence upload" guard in
+uploadEvidence(); adds deleteEvidence()), lib/repositories/response-repository.ts (adds
+pullEvidence()), lib/storage/types.ts comment update (delete() gains a real feature caller,
+not just the sweep script), new route app/api/portal/assessments/[id]/responses/[controlId]/
+evidence/[evidenceId]/route.ts gains a DELETE handler, components/portal/evidence-upload.tsx
+gains a delete affordance. Extends lib/services/__tests__/portal-assessment.test.ts.
+
+What to re-check if reverting: submitAssessment()'s `evidence.required` blocker is
+unchanged — only the upload-time gate moves. No data migration; existing evidence documents
+are unaffected either way. `storage.delete()` already existed (used by the sweep script) —
+this only adds a second caller, not new storage-driver code.
+
+Reversible? Yes, by git restore per file — no schema, auth, or destructive write.
+
+Prior active plan (closed):
 Browser E2E + UX reliability + documentation cleanup (2026-08-18, completed locally).
 Safe baseline: 5b37815193f5 (origin/main at task start).
 No schema, tenant-scoping, session format, or persistence changes. Added Playwright as a

@@ -14,20 +14,27 @@ export function EvidenceUpload({
   assessmentId,
   controlId,
   accept,
+  required,
   evidence,
   disabled,
   onUploaded,
+  onDeleted,
 }: {
   assessmentId: string;
   controlId: string;
   accept?: string[];
+  /** ASSESSMENT-WORKFLOW-PLAN.md Stage 1 (D4) — evidence is offered on every question now;
+   * this only changes the label, never whether the control renders. */
+  required?: boolean;
   evidence: EvidenceItem[];
   disabled?: boolean;
   onUploaded: (evidence: EvidenceItem) => void;
+  onDeleted?: (evidenceId: string) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function handleUpload() {
     const file = fileInputRef.current?.files?.[0];
@@ -57,8 +64,32 @@ export function EvidenceUpload({
     }
   }
 
+  async function handleDelete(evidenceId: string) {
+    setError(null);
+    setDeletingId(evidenceId);
+    try {
+      const response = await fetch(
+        `/api/portal/assessments/${assessmentId}/responses/${controlId}/evidence/${evidenceId}`,
+        { method: "DELETE" },
+      );
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        setError(body?.message ?? "Could not remove the file.");
+        return;
+      }
+      onDeleted?.(evidenceId);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div className="space-y-2">
+      <p className="text-muted-foreground text-xs">
+        Evidence{required ? " (required)" : " (optional)"}
+      </p>
       {error ? (
         <p className="text-destructive text-xs" role="alert">
           {error}
@@ -68,13 +99,24 @@ export function EvidenceUpload({
       {evidence.length > 0 ? (
         <ul className="space-y-1">
           {evidence.map((item) => (
-            <li key={item.id} className="text-xs">
+            <li key={item.id} className="flex items-center gap-2 text-xs">
               <a
                 href={`/api/portal/assessments/${assessmentId}/responses/${controlId}/evidence/${item.id}`}
                 className="text-primary underline"
               >
                 {item.filename}
               </a>
+              {!disabled ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={deletingId === item.id}
+                  onClick={() => void handleDelete(item.id)}
+                >
+                  {deletingId === item.id ? "Removing…" : "Remove"}
+                </Button>
+              ) : null}
             </li>
           ))}
         </ul>

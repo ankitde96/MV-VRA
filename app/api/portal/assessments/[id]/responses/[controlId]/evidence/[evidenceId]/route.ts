@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentPortalSession } from "@/lib/auth/current-portal-session";
 import { withRouteErrors } from "@/lib/http/with-route-errors";
-import { getEvidenceFile } from "@/lib/services/portal-assessment";
+import {
+  deleteEvidence,
+  getEvidenceFile,
+} from "@/lib/services/portal-assessment";
 
 /**
  * Authorised proxy route (CONSTRAINTS.md #10) — `getEvidenceFile` re-derives authorization
@@ -38,5 +41,30 @@ export const GET = withRouteErrors(
         "Content-Length": String(evidence.size),
       },
     });
+  },
+);
+
+/**
+ * ASSESSMENT-WORKFLOW-PLAN.md Stage 1 — lets a vendor remove a mistaken upload while the
+ * assessment is still editable; `deleteEvidence()` re-derives authorization from the
+ * session the same way the GET above does.
+ */
+export const DELETE = withRouteErrors(
+  async (
+    request: NextRequest,
+    {
+      params,
+    }: {
+      params: Promise<{ id: string; controlId: string; evidenceId: string }>;
+    },
+  ) => {
+    const session = await getCurrentPortalSession();
+    if (!session) {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+
+    const { id, controlId, evidenceId } = await params;
+    const result = await deleteEvidence(session, id, controlId, evidenceId);
+    return NextResponse.json(result);
   },
 );

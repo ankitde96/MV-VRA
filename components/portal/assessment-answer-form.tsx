@@ -175,6 +175,15 @@ export function AssessmentAnswerForm({
     }
   }
 
+  function handleEvidenceDeleted(controlId: string, evidenceId: string) {
+    setEvidenceByControl((prev) => ({
+      ...prev,
+      [controlId]: (prev[controlId] ?? []).filter(
+        (item) => item.id !== evidenceId,
+      ),
+    }));
+  }
+
   async function handleSubmit() {
     setSubmitError(null);
     setSubmitting(true);
@@ -336,22 +345,27 @@ export function AssessmentAnswerForm({
                 </span>
               ) : null}
 
-              {question.type === "file" || question.evidence ? (
-                <EvidenceUpload
-                  assessmentId={assessmentId}
-                  controlId={question.control_id}
-                  accept={question.evidence?.accept}
-                  evidence={evidenceByControl[question.control_id] ?? []}
-                  disabled={isReadOnly}
-                  onUploaded={(item) =>
-                    handleEvidenceUploaded(
-                      question.control_id,
-                      question.type === "file",
-                      item,
-                    )
-                  }
-                />
-              ) : null}
+              {/* D4 (ASSESSMENT-WORKFLOW-PLAN.md Stage 1): evidence upload is offered on
+                  every question, not only ones the template author flagged with an
+                  `evidence` object — the real seeded questionnaire never sets one. */}
+              <EvidenceUpload
+                assessmentId={assessmentId}
+                controlId={question.control_id}
+                accept={question.evidence?.accept}
+                required={question.evidence?.required ?? false}
+                evidence={evidenceByControl[question.control_id] ?? []}
+                disabled={isReadOnly}
+                onUploaded={(item) =>
+                  handleEvidenceUploaded(
+                    question.control_id,
+                    question.type === "file",
+                    item,
+                  )
+                }
+                onDeleted={(evidenceId) =>
+                  handleEvidenceDeleted(question.control_id, evidenceId)
+                }
+              />
             </div>
           ))}
         </div>

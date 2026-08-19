@@ -100,4 +100,22 @@ export class ResponseRepository extends TenantRepository<ResponseDoc> {
       { $push: { evidence } } as UpdateQuery<ResponseDoc>,
     );
   }
+
+  /** ASSESSMENT-WORKFLOW-PLAN.md Stage 1 — removes one evidence subdocument by its own
+   * `_id`, scoped by the same triple as every other write on this collection. */
+  pullEvidence(
+    assessmentId: string | Types.ObjectId,
+    controlId: string,
+    evidenceId: string | Types.ObjectId,
+  ) {
+    return this.updateOne(
+      {
+        assessment_id: toObjectId(assessmentId),
+        control_id: controlId,
+      } as QueryFilter<ResponseDoc>,
+      {
+        $pull: { evidence: { _id: toObjectId(evidenceId) } },
+      } as UpdateQuery<ResponseDoc>,
+    );
+  }
 }

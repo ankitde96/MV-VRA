@@ -93,6 +93,44 @@ targeting), 024 (RBAC capabilities). Supersedes none.
 
 ---
 
+## [2026-08-19] 041 — Stage 1 implemented: evidence upload's accept-list check now scoped to only when the template sets one
+
+**Decision:** `uploadEvidence()`'s accept-list extension check (`question.evidence.accept`)
+now reads `question.evidence?.accept` and only runs when the template author actually set an
+accept list. `validateUploadedFile()` (MIME allowlist + 10 MB cap) remains unconditional —
+it is now the sole file-type authority for a question with no `evidence` config at all,
+exactly as D4 (`DECISIONS.md` 040) specified.
+
+**Context:** Implementing Stage 1 of `ASSESSMENT-WORKFLOW-PLAN.md`. The only implementation
+choice not already fully pinned down by D4 was what happens to the accept-list check for a
+question that has no `evidence` object whatsoever — D4 says the upload must be _accepted_,
+but doesn't by itself say whether an accept list still applies.
+
+**Rationale:** A question with no `evidence` config has no accept list to check against, so
+the extension check has nothing to enforce — falling through to the global MIME allowlist is
+the only coherent behavior, not a separate carve-out.
+
+**Alternatives rejected:**
+
+- _Fabricate a default accept list for un-flagged questions_ — invents template intent that
+  was never expressed; the global `ALLOWED_MIME_TYPES` allowlist already exists for exactly
+  this "no specific rule" case.
+
+**Consequences:** `lib/uploads/constraints.ts`'s MIME allowlist is now reachable on every
+upload, not only ones with no `evidence.accept` — no change to that list itself (still
+pdf/doc/docx/xls/xlsx/png/jpeg, 10 MB), per `ASSESSMENT-WORKFLOW-PLAN.md` §3's stated
+assumption. Evidence deletion was added in the same stage (`deleteEvidence()`,
+`ResponseRepository.pullEvidence()`, a new `DELETE` route) since Stage 5's resend loop needs
+it and no delete path existed at all before this. `lib/storage/types.ts`'s `delete()` gains
+its first real feature caller — previously only the sweep script's explicit `--delete` pass
+used it.
+
+**Decided by:** Claude Sonnet 5 (`claude-sonnet-5`), implementing D4.
+
+**Supersedes / Superseded by:** Implements D4 (`DECISIONS.md` 040). Supersedes none.
+
+---
+
 ## [2026-08-18] 039 — Work directly on main; branches and pull requests are opt-in
 
 **Decision:** All implementation work should be performed directly in the `main` working
