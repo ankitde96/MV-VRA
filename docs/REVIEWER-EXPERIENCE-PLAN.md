@@ -1,6 +1,6 @@
 # REVIEWER-EXPERIENCE-PLAN.md — Reviewer Experience & Reporting Upgrade
 
-> **Status: Stages 0–4 complete and verified on 2026-08-20. Stages 5–7 remain plan-only.**
+> **Status: Stages 0–5 complete and verified on 2026-08-20. Stages 6–7 remain plan-only.**
 > Produced through the brainstorming workflow on 2026-08-20. Supersedes nothing; extends
 > the completed work in `docs/ASSESSMENT-WORKFLOW-PLAN.md` (Stages 1–5, all shipped).
 >
@@ -283,6 +283,9 @@ asserting a portal session cannot reach the internal route and vice versa.
 ---
 
 ## Stage 5 — Risk & remediation integration
+
+**Status: ✅ Complete and verified on 2026-08-20.** See
+`docs/features/reviewer-experience-stage-5-risk-remediation.md` and `DECISIONS.md` 051.
 
 **Goal.** Requested area #6.
 

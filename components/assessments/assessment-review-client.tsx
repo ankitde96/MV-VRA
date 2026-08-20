@@ -6,6 +6,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RaiseRiskDialog } from "@/components/risks/raise-risk-dialog";
 import {
   SeverityBadge,
@@ -63,6 +64,16 @@ interface AssessmentReviewClientProps {
     }>;
     enterprise_risk_categories: string[];
     is_provisional_taxonomy: boolean;
+    cap_completeness: {
+      incomplete_tasks: number;
+      issues: Array<{
+        risk_id: string;
+        risk_title: string;
+        task_id: string;
+        task_description: string;
+        missing_fields: Array<"owner" | "due_date">;
+      }>;
+    };
     metrics: {
       total: number;
       answered: number;
@@ -88,6 +99,7 @@ export function AssessmentReviewClient({
     risks,
     enterprise_risk_categories,
     is_provisional_taxonomy,
+    cap_completeness,
     metrics,
   } = initialData;
 
@@ -95,6 +107,7 @@ export function AssessmentReviewClient({
   const [dialogTitle, setDialogTitle] = useState("");
   const [dialogDescription, setDialogDescription] = useState("");
   const [completing, setCompleting] = useState(false);
+  const [capWarningAcknowledged, setCapWarningAcknowledged] = useState(false);
   const [resending, setResending] = useState(false);
   const [reviewState, dispatchReviewState] = useReducer(
     reviewStateReducer,
@@ -146,6 +159,11 @@ export function AssessmentReviewClient({
         `/api/assessments/${assessment.id}/complete-review`,
         {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            override_incomplete_cap_tasks:
+              cap_completeness.incomplete_tasks > 0 && capWarningAcknowledged,
+          }),
         },
       );
       if (!res.ok) {
@@ -305,9 +323,10 @@ export function AssessmentReviewClient({
   const openRaiseRiskModal = useCallback(
     (controlId: string, text: string, guidanceText?: string) => {
       setDialogControlId(controlId);
-      setDialogTitle(`Risk Exception: ${controlId} - ${text.slice(0, 50)}`);
+      setDialogTitle(`${controlId}: ${text.slice(0, 72)}`);
       setDialogDescription(
-        guidanceText ?? `Control failure detected for ${controlId}`,
+        guidanceText ??
+          `The vendor response for ${controlId} was marked non-compliant. Document the resulting risk and required remediation.`,
       );
     },
     [],
@@ -358,7 +377,20 @@ export function AssessmentReviewClient({
               >
                 {resending ? "Returning…" : "Request changes"}
               </Button>
-              <Button onClick={handleCompleteReview} disabled={completing}>
+              <Button
+                onClick={handleCompleteReview}
+                disabled={
+                  completing ||
+                  (cap_completeness.incomplete_tasks > 0 &&
+                    !capWarningAcknowledged)
+                }
+                title={
+                  cap_completeness.incomplete_tasks > 0 &&
+                  !capWarningAcknowledged
+                    ? "Acknowledge the incomplete CAP warning before completing"
+                    : undefined
+                }
+              >
                 {completing ? "Completing…" : "Complete Review"}
               </Button>
             </div>
@@ -387,6 +419,47 @@ export function AssessmentReviewClient({
             Provisional
           </Badge>
         </div>
+      ) : null}
+
+      {!isCompleted && cap_completeness.incomplete_tasks > 0 ? (
+        <section
+          id="cap-completeness-warning"
+          className="space-y-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-950 dark:text-amber-100"
+          role="status"
+        >
+          <div>
+            <p className="font-semibold">
+              {cap_completeness.incomplete_tasks} corrective action task
+              {cap_completeness.incomplete_tasks === 1 ? "" : "s"} need
+              completion details
+            </p>
+            <p className="mt-1 text-xs opacity-80">
+              Add the missing owner or due date in the risk register. This is an
+              advisory warning and may be explicitly overridden without
+              weakening the existing review gates.
+            </p>
+          </div>
+          <ul className="space-y-1 text-xs">
+            {cap_completeness.issues.map((issue) => (
+              <li key={`${issue.risk_id}-${issue.task_id}`}>
+                <span className="font-medium">{issue.risk_title}:</span>{" "}
+                {issue.task_description} — missing{" "}
+                {issue.missing_fields.join(" and ")}
+              </li>
+            ))}
+          </ul>
+          <label className="flex cursor-pointer items-start gap-2 text-xs font-medium">
+            <Checkbox
+              checked={capWarningAcknowledged}
+              onCheckedChange={(checked) =>
+                setCapWarningAcknowledged(Boolean(checked))
+              }
+              aria-describedby="cap-completeness-warning"
+            />
+            I acknowledge these incomplete CAP details and want to complete the
+            review anyway. This override will be audited.
+          </label>
+        </section>
       ) : null}
 
       {/* Metrics Bar */}

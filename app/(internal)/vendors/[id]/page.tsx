@@ -7,6 +7,7 @@ import { AssessmentRepository } from "@/lib/repositories/assessment-repository";
 import { TemplateRepository } from "@/lib/repositories/template-repository";
 import { getOffboardingView } from "@/lib/services/offboarding";
 import { getVendorScorecard } from "@/lib/services/analytics";
+import { AssessmentReviewService } from "@/lib/services/assessment-review";
 import { SpocEditForm } from "@/components/spoc-edit-form";
 import { VendorDocumentUpload } from "@/components/vendor-document-upload";
 import { AssignAssessmentForm } from "@/components/assessments/assign-assessment-form";
@@ -16,6 +17,7 @@ import { StatCard } from "@/components/layout/stat-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScoreBreakdown } from "@/components/domain/score-breakdown";
 import { AssessmentHistoryList } from "@/components/domain/assessment-history-list";
+import { VendorOverdueRemediation } from "@/components/vendors/vendor-overdue-remediation";
 import { RiskTierBadge } from "@/components/domain/risk-tier-badge";
 import { CalendarClock, ClipboardList, FileCheck } from "lucide-react";
 import type { QuestionsSchema } from "@/lib/questionnaire/schema";
@@ -114,18 +116,23 @@ export default async function VendorDetailPage({
   );
 
   const ctx = { workspaceId: session.workspaceId };
-  const [offboardingByEngagement, scorecard] = await Promise.all([
-    Promise.all(
-      engagements.map(
-        async (e) =>
-          [
-            e._id.toString(),
-            await getOffboardingView(ctx, e._id.toString()),
-          ] as const,
-      ),
-    ).then((entries) => new Map(entries)),
-    getVendorScorecard(ctx, id),
-  ]);
+  const reviewService = new AssessmentReviewService(ctx);
+  const [offboardingByEngagement, scorecard, overdueRemediation] =
+    await Promise.all([
+      Promise.all(
+        engagements.map(
+          async (e) =>
+            [
+              e._id.toString(),
+              await getOffboardingView(ctx, e._id.toString()),
+            ] as const,
+        ),
+      ).then((entries) => new Map(entries)),
+      getVendorScorecard(ctx, id),
+      reviewService.detectAndEscalateOverdueCaps(session.userId, {
+        vendor_id: id,
+      }),
+    ]);
 
   return (
     <div className="space-y-8">
@@ -217,6 +224,8 @@ export default async function VendorDetailPage({
           />
         </div>
       </section>
+
+      <VendorOverdueRemediation items={overdueRemediation} />
 
       <section className="space-y-4">
         <h2 className="text-foreground text-sm font-semibold">

@@ -75,6 +75,16 @@ route; neither accepts a storage key from the request. All bytes flow through
 `EVIDENCE_ZIP_MAX_BYTES` ceiling before bodies are loaded, then `archiver` writes sanitized,
 collision-safe paths plus `manifest.csv` to the response stream. See `DECISIONS.md` 050.
 
+**Reviewer experience Stage 5 (2026-08-20):** Risk creation continues through
+`AssessmentReviewService.raiseRisk()` and its capability-protected route; the review row now
+offers that existing dialog only for non-compliant controls lacking a linked risk.
+`getAssessmentReviewData()` also exposes a pure cross-risk CAP-completeness summary.
+`completeReview()` preserves both existing hard gates, accepts an explicit advisory CAP
+override, and writes a separate append-only audit event when used. The request-driven overdue
+detector accepts an optional repository-level vendor filter, allowing vendor detail pages to
+escalate and render only their own overdue tasks. Risk-register serialization is null-safe for
+legacy missing due dates. See `DECISIONS.md` 051.
+
 ## 1. What this system is
 
 **MV-VRA** (MoneyView Vendor Risk Assessment) is a centralized system of record for

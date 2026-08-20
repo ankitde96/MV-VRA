@@ -54,9 +54,15 @@ export class RiskRepository extends TenantRepository<RiskDoc> {
    * here (rather than fetching every risk) keeps the request-driven check cheap enough to run
    * on every queue-page load, per PLAN.md Phase 9's "request-driven, no job runner" default.
    */
-  findRisksWithPastDueCapTasks(now: Date) {
+  findRisksWithPastDueCapTasks(
+    now: Date,
+    filter?: { vendor_id?: Types.ObjectId | string },
+  ) {
     return this.model.find(
       this.scope({
+        ...(filter?.vendor_id
+          ? { vendor_id: toObjectId(filter.vendor_id) }
+          : {}),
         cap_tasks: {
           $elemMatch: { due_date: { $lt: now }, status: { $ne: "closed" } },
         },

@@ -32,7 +32,7 @@ interface CapTaskItem {
   description: string;
   owner_type: "internal" | "vendor";
   owner_label: string;
-  due_date: string;
+  due_date: string | null;
   status: "open" | "in_progress" | "overdue" | "closed";
   closed_at: string | null;
   escalated_at: string | null;
@@ -330,7 +330,10 @@ export function RiskRegisterClient({
                   const capTasks = risk.cap_tasks ?? [];
                   return (
                     <Fragment key={risk.id}>
-                      <TableRow className="hover:bg-muted/20">
+                      <TableRow
+                        id={`risk-${risk.id}`}
+                        className="scroll-mt-24 hover:bg-muted/20 target:bg-primary/5"
+                      >
                         <TableCell className="font-mono font-medium">
                           {risk.control_id}
                         </TableCell>
@@ -416,9 +419,11 @@ export function RiskRegisterClient({
                                       <span className="text-muted-foreground">
                                         Owner: {task.owner_label} (
                                         {task.owner_type}) — Due{" "}
-                                        {new Date(
-                                          task.due_date,
-                                        ).toLocaleDateString()}
+                                        {task.due_date
+                                          ? new Date(
+                                              task.due_date,
+                                            ).toLocaleDateString()
+                                          : "Not set"}
                                         {task.escalated_at
                                           ? " — escalation sent"
                                           : ""}

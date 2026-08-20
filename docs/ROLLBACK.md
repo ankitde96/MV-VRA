@@ -34,6 +34,27 @@ For anything smaller, `git diff` and `git restore` are sufficient.
 Overwrite this block at the start of each risky change. One at a time.
 
 ```
+Reviewer experience upgrade — Stage 5: risk and remediation integration
+(2026-08-20, DONE). Safe baseline: 1c76c4413716dc39449cc2d2d18f8c72ce161916
+(origin/main; clean worktree at stage start).
+
+Add reviewer-side prefilled risk creation and per-control risk state, an advisory CAP
+owner/due-date completeness warning with an explicit audited completion override, and a
+vendor-scoped overdue-remediation surface backed by the existing request-driven detector.
+No schema, session, capability, storage, scoring, or hard completion-gate change is planned.
+
+Reversible by restoring the Stage 5 service/route/component/test/documentation files from
+the safe baseline. Risks or audit events created while deployed remain valid records if the
+UI is reverted; the override is append-only audit context and requires no data cleanup.
+
+Verified: focused service and age-bucket tests passed 2 files/28 tests; the disposable
+desktop/mobile remediation journey passed 2/2 and proves vendor-scoped overdue display and
+deep links, risk creation from a non-compliant control, explicit CAP-warning acknowledgement,
+successful completion, and audit persistence; `21st review` reported 0 findings; `npm run
+verify` passed 36 files/261 tests and the 35-page production build.
+
+Prior active plan (closed):
+
 Reviewer experience upgrade — Stage 4: evidence review experience
 (2026-08-20, DONE). Safe baseline: 04b77cc71d75947b884ef93626cd25932bbd1db1
 (origin/main; clean worktree at stage start).

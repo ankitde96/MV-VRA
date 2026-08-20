@@ -536,6 +536,74 @@ describe("AssessmentReviewService (integration)", () => {
     expect(storedAssessment?.next_review_due).toBeNull();
   });
 
+  it("completeReview() requires an explicit audited override for incomplete CAP ownership or due dates", async () => {
+    await dbConnect();
+    const assessment = await seedFixtures();
+    const service = new AssessmentReviewService({ workspaceId });
+    const raised = await service.raiseRisk(assessment._id.toString(), {
+      control_id: "HOST-08",
+      title: "Legacy incomplete remediation",
+      severity: "high",
+      enterprise_risk_category: "Information Security",
+      impact_level: "high",
+    });
+    await service.createCapTask(raised.risk_id, {
+      description: "Supply a verified remediation plan",
+      owner_type: "vendor",
+      due_date: new Date("2099-01-01"),
+    });
+
+    // Simulate a legacy/external write that predates current required CAP fields. The raw
+    // collection operation deliberately bypasses Mongoose validation so the advisory path
+    // can be regression-tested against the malformed records it exists to handle.
+    await Risk.collection.updateOne(
+      { _id: new Types.ObjectId(raised.risk_id) },
+      {
+        $unset: {
+          "cap_tasks.0.owner_ref": true,
+          "cap_tasks.0.due_date": true,
+        },
+      },
+    );
+
+    const reviewData = await service.getAssessmentReviewData(
+      assessment._id.toString(),
+    );
+    expect(reviewData.cap_completeness).toMatchObject({
+      incomplete_tasks: 1,
+      issues: [
+        {
+          risk_id: raised.risk_id,
+          missing_fields: ["owner", "due_date"],
+        },
+      ],
+    });
+    const registerData = await service.listWorkspaceRisks();
+    expect(registerData.risks[0]?.cap_tasks[0]?.due_date).toBeNull();
+
+    await expect(
+      service.completeReview(
+        assessment._id.toString(),
+        businessOwnerId.toString(),
+      ),
+    ).rejects.toThrow(/explicitly acknowledge/i);
+
+    await expect(
+      service.completeReview(assessment._id.toString(), businessOwnerId, {
+        override_incomplete_cap_tasks: true,
+      }),
+    ).resolves.toEqual({ ok: true, status: "completed" });
+
+    const overrideEvent = await AuditEvent.findOne({
+      action: "assessment.cap_completeness_overridden",
+      entity_id: assessment._id,
+    }).lean();
+    expect(overrideEvent?.actor.id?.toString()).toBe(
+      businessOwnerId.toString(),
+    );
+    expect(overrideEvent?.diff).toMatchObject({ incomplete_tasks: 1 });
+  });
+
   it("raiseRisk() rejects a request missing required fields before writing anything", async () => {
     await dbConnect();
     const assessment = await seedFixtures();
@@ -728,6 +796,13 @@ describe("AssessmentReviewService (integration)", () => {
 
       const mailer = getMailer();
       const sendSpy = vi.spyOn(mailer, "send").mockResolvedValue(undefined);
+
+      const otherVendorItems = await service.detectAndEscalateOverdueCaps(
+        "system@mv-vra.local",
+        { vendor_id: new Types.ObjectId().toString() },
+      );
+      expect(otherVendorItems).toHaveLength(0);
+      expect(sendSpy).not.toHaveBeenCalled();
 
       const firstRun = await service.detectAndEscalateOverdueCaps();
       const item = firstRun.find((i) => i.task_id === created.task_id);

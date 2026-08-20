@@ -8,7 +8,7 @@
 
 ## Current state (as of 2026-08-20)
 
-- **Reviewer-experience upgrade Stages 0–4 complete and verified.** Stage 0 decomposes the
+- **Reviewer-experience upgrade Stages 0–5 complete and verified.** Stage 0 decomposes the
   review page into reducer-owned state, `ReviewSection`, and memoized `ReviewQuestionRow`,
   with a field-free URL-state hook ready for Stage 3. Stage 1 adds advisory
   `Response.evidence_flags[]`, permits CSV/TXT with MIME/extension agreement while retaining
@@ -28,9 +28,14 @@
   streams a sanitized, manifest-bearing ZIP under a configurable 100 MiB metadata ceiling.
   Its focused tests passed 31/31, desktop/mobile browser journey passed 2/2, and `21st
 review` found no issues. `npm run verify` passed (35 files, 254 tests, 35-page production
-  build). See `docs/features/reviewer-experience-stage-{0-decomposition,1-foundations,2-demo-data,3-productivity,4-evidence-review}.md`
-  and `DECISIONS.md` 046–050. **Next discrete request is Stage 5 — risk and remediation
-  integration.**
+  build). Stage 5 adds risk-required/linked states at each control, reuses the prefilled risk
+  dialog, provides an explicit audited override for advisory CAP owner/due-date gaps, and
+  surfaces vendor-scoped overdue remediation with age buckets and register deep links. Its
+  focused tests passed 28/28, desktop/mobile browser journey passed 2/2, and `21st review`
+  found no issues. The current full gate passes 36 files/261 tests and the 35-page build. See
+  `docs/features/reviewer-experience-stage-{0-decomposition,1-foundations,2-demo-data,3-productivity,4-evidence-review,5-risk-remediation}.md`
+  and `DECISIONS.md` 046–051. **Next discrete request is Stage 6 — completion workflow and
+  exports.**
 
 - **Future ideas now have one canonical holding area:** `docs/FUTURE-IDEAS.md` consolidates
   operational hardening, the eight explicitly parked product areas, and still-relevant
@@ -72,7 +77,7 @@ review` found no issues. `npm run verify` passed (35 files, 254 tests, 35-page p
     fixed (a Stage-2 test fixture genuinely needed `spocs[]` added) or confirmed as a
     pre-existing cross-file local-fs storage race unrelated to this work (reproduces
     intermittently across the whole suite, never in isolation).
-- **Next up:** Reviewer Experience Stage 5 — risk and remediation integration.
+- **Next up:** Reviewer Experience Stage 6 — completion workflow and exports.
 
 - **Browser E2E and portal reliability hardening added (2026-08-18).** Playwright now runs
   desktop Chromium and a Pixel 7 viewport against a real Next.js server. The read-only suite

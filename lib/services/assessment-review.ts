@@ -115,6 +115,63 @@ export interface OverdueCapQueueItem {
   newly_escalated: boolean;
 }
 
+export interface CapCompletenessIssue {
+  risk_id: string;
+  risk_title: string;
+  task_id: string;
+  task_description: string;
+  missing_fields: Array<"owner" | "due_date">;
+}
+
+export interface CapCompletenessSummary {
+  incomplete_tasks: number;
+  issues: CapCompletenessIssue[];
+}
+
+function getCapCompletenessSummary(
+  risks: Array<{
+    _id: Types.ObjectId;
+    title: string;
+    cap_tasks?: unknown[];
+  }>,
+): CapCompletenessSummary {
+  const issues: CapCompletenessIssue[] = [];
+
+  for (const risk of risks) {
+    for (const rawTask of risk.cap_tasks ?? []) {
+      const task = rawTask as {
+        task_id?: Types.ObjectId;
+        description?: string;
+        owner_type?: string;
+        owner_ref?: Types.ObjectId;
+        due_date?: Date;
+      };
+      const missingFields: CapCompletenessIssue["missing_fields"] = [];
+      if (
+        !["internal", "vendor"].includes(task.owner_type ?? "") ||
+        !task.owner_ref
+      ) {
+        missingFields.push("owner");
+      }
+      const dueDate = task.due_date ? new Date(task.due_date) : null;
+      if (!dueDate || Number.isNaN(dueDate.getTime())) {
+        missingFields.push("due_date");
+      }
+      if (missingFields.length > 0) {
+        issues.push({
+          risk_id: risk._id.toString(),
+          risk_title: risk.title,
+          task_id: task.task_id?.toString() ?? "unknown",
+          task_description: task.description ?? "Corrective action task",
+          missing_fields: missingFields,
+        });
+      }
+    }
+  }
+
+  return { incomplete_tasks: issues.length, issues };
+}
+
 export interface ReviewerQuestionItem {
   control_id: string;
   text: string;
@@ -412,6 +469,7 @@ export class AssessmentReviewService {
       })),
       enterprise_risk_categories: enterpriseRiskCategories,
       is_provisional_taxonomy: useProvisionalTaxonomy,
+      cap_completeness: getCapCompletenessSummary(risks),
       metrics: {
         total: totalCount,
         answered: answeredCount,
@@ -908,9 +966,12 @@ export class AssessmentReviewService {
    */
   async detectAndEscalateOverdueCaps(
     actorIdOrEmail: string | Types.ObjectId = "system@mv-vra.local",
+    filter?: { vendor_id?: string },
   ): Promise<OverdueCapQueueItem[]> {
     const now = new Date();
-    const risks = await this.riskRepo.findRisksWithPastDueCapTasks(now).lean();
+    const risks = await this.riskRepo
+      .findRisksWithPastDueCapTasks(now, filter)
+      .lean();
     if (risks.length === 0) return [];
 
     const vendorIds = [...new Set(risks.map((r) => r.vendor_id.toString()))];
@@ -1015,6 +1076,7 @@ export class AssessmentReviewService {
   async completeReview(
     assessmentId: string,
     actorIdOrEmail: string | Types.ObjectId = "internal@mv-vra.local",
+    options: { override_incomplete_cap_tasks?: boolean } = {},
   ) {
     const assessment = await this.assessmentRepo.findById(assessmentId).lean();
     if (!assessment) {
@@ -1061,6 +1123,16 @@ export class AssessmentReviewService {
       );
     }
 
+    const capCompleteness = getCapCompletenessSummary(risks);
+    if (
+      capCompleteness.incomplete_tasks > 0 &&
+      !options.override_incomplete_cap_tasks
+    ) {
+      throw new ValidationError(
+        `${capCompleteness.incomplete_tasks} corrective action task${capCompleteness.incomplete_tasks === 1 ? " is" : "s are"} missing an owner or due date; explicitly acknowledge the warning to complete review`,
+      );
+    }
+
     // Additive, UI Revamp Round 2 (DECISIONS.md 029) — next_review_due drives the
     // "reassessment overdue" KRI. Derived from the vendor's current tier and the
     // workspace's configured cadence at the moment review completes; an unscored vendor
@@ -1098,6 +1170,27 @@ export class AssessmentReviewService {
         },
       },
     );
+
+    if (
+      capCompleteness.incomplete_tasks > 0 &&
+      options.override_incomplete_cap_tasks
+    ) {
+      await recordAuditEvent({
+        workspace_id: toObjectId(this.ctx.workspaceId),
+        actor: {
+          type: "internal",
+          id: resolveActorId(actorIdOrEmail),
+          email: typeof actorIdOrEmail === "string" ? actorIdOrEmail : null,
+        },
+        action: "assessment.cap_completeness_overridden",
+        entity_type: "Assessment",
+        entity_id: assessment._id,
+        diff: {
+          incomplete_tasks: capCompleteness.incomplete_tasks,
+          issues: capCompleteness.issues,
+        },
+      });
+    }
 
     await recordAuditEvent({
       workspace_id: toObjectId(this.ctx.workspaceId),
@@ -1190,22 +1283,28 @@ export class AssessmentReviewService {
         residual_inputs: r.residual_inputs,
         status: r.status,
         cap_tasks_count: r.cap_tasks?.length ?? 0,
-        cap_tasks: (r.cap_tasks ?? []).map((t) => ({
-          task_id: t.task_id?.toString() ?? "",
-          description: t.description,
-          owner_type: t.owner_type as CapTaskOwnerType,
-          owner_label:
-            t.owner_type === "vendor"
-              ? (vendorMap.get(r.vendor_id.toString()) ?? "Vendor SPOC")
-              : (internalOwnerMap.get(t.owner_ref?.toString() ?? "") ??
-                "Unknown user"),
-          due_date: new Date(t.due_date).toISOString(),
-          status: t.status as CapTaskStatus,
-          closed_at: t.closed_at ? new Date(t.closed_at).toISOString() : null,
-          escalated_at: t.escalated_at
-            ? new Date(t.escalated_at).toISOString()
-            : null,
-        })),
+        cap_tasks: (r.cap_tasks ?? []).map((t) => {
+          const dueDate = t.due_date ? new Date(t.due_date) : null;
+          return {
+            task_id: t.task_id?.toString() ?? "",
+            description: t.description,
+            owner_type: t.owner_type as CapTaskOwnerType,
+            owner_label:
+              t.owner_type === "vendor"
+                ? (vendorMap.get(r.vendor_id.toString()) ?? "Vendor SPOC")
+                : (internalOwnerMap.get(t.owner_ref?.toString() ?? "") ??
+                  "Unknown user"),
+            due_date:
+              dueDate && !Number.isNaN(dueDate.getTime())
+                ? dueDate.toISOString()
+                : null,
+            status: t.status as CapTaskStatus,
+            closed_at: t.closed_at ? new Date(t.closed_at).toISOString() : null,
+            escalated_at: t.escalated_at
+              ? new Date(t.escalated_at).toISOString()
+              : null,
+          };
+        }),
         created_at:
           (r as unknown as { created_at?: Date }).created_at?.toISOString() ??
           new Date().toISOString(),

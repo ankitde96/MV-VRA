@@ -337,10 +337,17 @@ real vendor/risk counts and omitted the second entirely, and `authorized_workspa
 4. Resubmit validates only the correction set, returns to `submitted`, and emails the
    reviewer who requested changes.
 5. Completion refuses visible unmarked controls and non-compliant controls without a linked
-   risk; after those gates pass it completes through the existing scoring/review path.
+   risk; after those gates pass it completes through the existing scoring/review path. Stage
+   5 additionally warns about CAP tasks missing owner or due-date data. That warning is
+   advisory only, requires explicit acknowledgement, and writes a dedicated audit event when
+   overridden; the two hard gates remain unchanged (`DECISIONS.md` 051).
 
 `scripts/seed-demo-data.ts` now includes one `review_round: 1` assessment with
 `resent_by`/`resent_at`, preserved round-zero verdicts, corrected response values, and a
 current `submitted` state. Linked demo risks and CAP tasks are created through the same
 `AssessmentReviewService` methods named in F4, including past-due open tasks for the normal
 request-driven overdue path.
+Stage 5 brings this flow into the control row: a non-compliant control without a risk is
+visually explicit and opens the prefilled existing risk dialog; linked risks deep-link to
+anchored register rows. Vendor pages run the existing overdue detector with a repository-
+level vendor filter, then show counts in 1–30/31–60/61–90/90+ day buckets and the exact tasks.

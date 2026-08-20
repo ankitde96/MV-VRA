@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -100,6 +101,17 @@ export const ReviewQuestionRow = memo(function ReviewQuestionRow({
             <Badge variant="outline" className={statusBadge.className}>
               {statusBadge.label}
             </Badge>
+            {question.associated_risks.length > 0 ? (
+              <Badge
+                variant="outline"
+                className="border-primary/30 bg-primary/10 text-primary"
+              >
+                {question.associated_risks.length} risk
+                {question.associated_risks.length === 1 ? "" : "s"} linked
+              </Badge>
+            ) : review.verdict === "non_compliant" ? (
+              <Badge variant="destructive">Risk required</Badge>
+            ) : null}
             {question.is_required ? (
               <span className="text-muted-foreground text-[10px]">
                 (Required)
@@ -109,7 +121,10 @@ export const ReviewQuestionRow = memo(function ReviewQuestionRow({
           <p className="text-foreground text-sm font-medium">{question.text}</p>
         </div>
 
-        {!question.is_suppressed && !isCompleted ? (
+        {!question.is_suppressed &&
+        !isCompleted &&
+        review.verdict === "non_compliant" &&
+        question.associated_risks.length === 0 ? (
           <Button
             size="sm"
             variant="outline"
@@ -121,7 +136,7 @@ export const ReviewQuestionRow = memo(function ReviewQuestionRow({
               )
             }
           >
-            Raise Risk
+            Raise required risk
           </Button>
         ) : null}
       </div>
@@ -246,9 +261,19 @@ export const ReviewQuestionRow = memo(function ReviewQuestionRow({
               key={risk.id}
               className="flex items-center justify-between font-mono text-xs"
             >
-              <span>{risk.title}</span>
-              <span className="text-primary font-bold">
-                Score: {risk.residual_score}
+              <Link
+                href={`/risks#risk-${risk.id}`}
+                className="font-sans font-medium hover:underline"
+              >
+                {risk.title}
+              </Link>
+              <span className="flex items-center gap-2">
+                <Badge variant="outline" className="capitalize">
+                  {risk.status}
+                </Badge>
+                <span className="text-primary font-bold">
+                  Score: {risk.residual_score}
+                </span>
               </span>
             </div>
           ))}

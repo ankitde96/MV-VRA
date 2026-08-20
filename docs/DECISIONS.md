@@ -23,6 +23,49 @@
 
 ---
 
+## [2026-08-20] 051 — CAP completeness is advisory only through an explicit audited override
+
+**Decision:** Keep unmarked controls and non-compliant controls without a linked risk as the
+only hard review-completion failures. Calculate CAP owner/due-date completeness across the
+assessment's risks, surface every issue in reviewer data, reject completion until the user
+explicitly acknowledges the advisory warning, and record
+`assessment.cap_completeness_overridden` with the exact issues when they proceed. Offer the
+existing prefilled risk dialog only on non-compliant controls lacking risk coverage. Filter
+request-driven overdue detection at the repository by vendor for vendor-detail rendering,
+and deep-link those items to stable risk-register row anchors.
+
+**Context:** Stage 5 needed to connect verdicts, risks, and remediation without silently
+creating records or weakening the prior assessment workflow. CAP fields are required on
+current schema-backed writes, but legacy/external records can be incomplete; the browser
+fixture proved the global register also needed to tolerate those records before users could
+repair them.
+
+**Rationale:** The server remains authoritative for both hard and advisory checks. An
+explicit boolean plus a dedicated audit event provides evidence of reviewer intent without
+turning CAP data quality into a new business gate. Reusing `raiseRisk()` preserves scoring,
+tenant scope, status transitions, and audit behavior. Filtering before overdue processing
+prevents a vendor page from scanning or escalating unrelated vendors. Stable anchors make
+the remediation list actionable without adding a premature risk-detail route.
+
+**Alternatives rejected:** Automatically create risks on a non-compliant verdict — removes
+reviewer judgment. Make CAP completeness a hard failure — contradicts plan decision R4 and
+can strand legacy records. Trust a client-only warning — crafted requests could bypass
+acknowledgement and no durable intent would exist. Fetch the workspace-wide overdue queue
+and filter in the component — performs unrelated work and can trigger unrelated escalations.
+Add a new risk-detail page — exceeds this stage when the register already owns editing.
+
+**Consequences:** The complete-review route accepts
+`override_incomplete_cap_tasks`; normal calls remain valid when no warning exists. Review
+payloads include `cap_completeness`. Risk-register CAP dates are nullable at the presentation
+boundary and render as `Not set`. Vendor detail loads can perform the existing idempotent
+one-time escalation, but only for that vendor. No schema, migration, capability, scoring, or
+hard-gate change is introduced.
+
+**Decided by:** Project owner through `REVIEWER-EXPERIENCE-PLAN.md` Stage 5; implementation
+detail reasoned by Codex (GPT-5).
+
+---
+
 ## [2026-08-20] 050 — Evidence access is session-specific and archive work is metadata-bounded
 
 **Decision:** Give internal reviewers dedicated membership-authenticated evidence routes;
