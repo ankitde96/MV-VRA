@@ -2509,3 +2509,29 @@ project owner confirmed that visual direction in `docs/features/mv-vra-console-r
 becomes the internal review queue while existing review authorization remains unchanged.
 
 **Decided by:** Project owner; implemented by Codex (GPT-5).
+
+---
+
+## 052 — Ranked opportunity map kept separate from FUTURE-IDEAS.md
+
+**Date:** 2026-08-20
+**Model:** Claude Opus 5 (`claude-opus-5`)
+
+**Decision.** The owner-requested "what else can we do here" research was written to a new
+file, `docs/OPPORTUNITY-MAP.md`, rather than appended to `docs/FUTURE-IDEAS.md`.
+
+**Alternatives considered.** (a) Append everything to `FUTURE-IDEAS.md`. (b) Extend
+`PLAN.md`.
+
+**Why.** `FUTURE-IDEAS.md` states in its own header that listing an item does not approve it,
+and it is deliberately unranked. Merging ranked opinion, effort sizing, and recommendations
+into it would erode that guarantee — a reader would no longer be able to tell inventory from
+advocacy. `PLAN.md` describes built phases and would falsely imply commitment. A cross-link
+was added in both directions instead.
+
+**Consequence.** Two files must be kept consistent. `OPPORTUNITY-MAP.md` cites
+`FUTURE-IDEAS.md` rather than restating items, so the inventory stays the single source for
+"what exists as an idea"; the map only ranks.
+
+**Scope note.** The map describes the eight parked spec §4 areas, tagged `[PARKED]`.
+`CONSTRAINTS.md` #6 bans _building_ them, not describing them; no approval is implied.

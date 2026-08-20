@@ -8,6 +8,14 @@
 
 ## Current state (as of 2026-08-20)
 
+- **Opportunity map written (2026-08-20):** `docs/OPPORTUNITY-MAP.md` is a research-only,
+  ranked view of what to build next across features, UI, performance, vendor-risk domain,
+  and operational readiness. It ranks reviewer Stage 6 first, records eight decisions
+  (O1–O8), gives explicit _triggers_ rather than priorities for perf work, names things
+  deliberately **not** to do next, and lists four open questions for the owner. It does not
+  replace `docs/FUTURE-IDEAS.md`, which stays the canonical unranked holding area. Nothing
+  in it is approved work; parked §4 items are tagged as needing owner approval.
+
 - **Reviewer-experience upgrade Stages 0–5 complete and verified.** Stage 0 decomposes the
   review page into reducer-owned state, `ReviewSection`, and memoized `ReviewQuestionRow`,
   with a field-free URL-state hook ready for Stage 3. Stage 1 adds advisory

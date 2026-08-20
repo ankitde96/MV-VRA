@@ -8,6 +8,10 @@
 > `ASSESSMENT-WORKFLOW-PLAN.md`, `HANDOVER.md`, and feature-trace follow-ups. Completed or
 > superseded historical gaps were deliberately excluded.
 
+> **Ranked companion:** `docs/OPPORTUNITY-MAP.md` (2026-08-20) argues priority, effort, and
+> triggers over this inventory and adds domain-feature ideas not listed here. This file
+> remains the canonical holding area; that one is opinion, not approval.
+
 ## 1. Operational hardening
 
 - Store evidence in S3-compatible storage outside development. Configure the production
