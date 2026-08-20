@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { ReviewerQuestionItem } from "@/lib/services/assessment-review";
 import type { ReviewItemState, ReviewVerdict } from "./review-state";
+import {
+  getReviewControlDomId,
+  getReviewNoteDomId,
+} from "./review-productivity";
 
 const CONTROL_STATUS_BADGES: Record<
   ReviewerQuestionItem["control_status"],
@@ -40,6 +44,7 @@ interface ReviewQuestionRowProps {
   question: ReviewerQuestionItem;
   review: ReviewItemState;
   isCompleted: boolean;
+  isFocused: boolean;
   onVerdictChange: (
     controlId: string,
     verdict: Exclude<ReviewVerdict, null>,
@@ -51,23 +56,32 @@ interface ReviewQuestionRowProps {
     verdict: ReviewVerdict,
   ) => void;
   onRaiseRisk: (controlId: string, text: string, guidanceText?: string) => void;
+  onFocusControl: (controlId: string) => void;
+  onRetry: (controlId: string) => void;
 }
 
 export const ReviewQuestionRow = memo(function ReviewQuestionRow({
   question,
   review,
   isCompleted,
+  isFocused,
   onVerdictChange,
   onNoteChange,
   onRaiseRisk,
+  onFocusControl,
+  onRetry,
 }: ReviewQuestionRowProps) {
   const statusBadge = CONTROL_STATUS_BADGES[question.control_status];
 
   return (
     <div
-      className={`space-y-3 rounded-md border p-4 text-xs transition-colors ${
-        question.is_suppressed ? "bg-muted/40 opacity-75" : "bg-background"
-      }`}
+      id={getReviewControlDomId(question.control_id)}
+      data-review-control={question.control_id}
+      tabIndex={-1}
+      onFocus={() => onFocusControl(question.control_id)}
+      className={`scroll-mt-44 space-y-3 rounded-md border p-4 text-xs transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
+        isFocused ? "border-primary/60 ring-2 ring-primary/15" : ""
+      } ${question.is_suppressed ? "bg-muted/40 opacity-75" : "bg-background"}`}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
@@ -133,6 +147,8 @@ export const ReviewQuestionRow = memo(function ReviewQuestionRow({
             </Button>
           </div>
           <Textarea
+            id={getReviewNoteDomId(question.control_id)}
+            aria-label={`Reviewer note for ${question.control_id}`}
             value={review.note}
             placeholder="Explain what the vendor should change"
             onChange={(event) =>
@@ -144,11 +160,26 @@ export const ReviewQuestionRow = memo(function ReviewQuestionRow({
             }
           />
           {review.error ? (
-            <p className="text-destructive text-[11px]">
-              Save failed. Change the verdict or note to retry.
+            <div
+              className="text-destructive flex items-center gap-2 text-[11px]"
+              role="alert"
+            >
+              <span>Save failed.</span>
+              <Button
+                type="button"
+                size="xs"
+                variant="outline"
+                onClick={() => onRetry(question.control_id)}
+              >
+                Retry
+              </Button>
+            </div>
+          ) : review.saving ? (
+            <p className="text-muted-foreground text-[11px]" aria-live="polite">
+              Saving…
             </p>
           ) : review.savedAt ? (
-            <p className="text-muted-foreground text-[11px]">
+            <p className="text-muted-foreground text-[11px]" aria-live="polite">
               Saved{" "}
               {review.savedAt.toLocaleTimeString([], {
                 hour: "2-digit",

@@ -23,6 +23,46 @@
 
 ---
 
+## [2026-08-20] 049 — Reviewer productivity state is bounded, client-side, and URL-addressable
+
+**Decision:** Compute review progress and facets over the assessment snapshot plus reducer
+state in pure client-side helpers, always excluding suppressed controls. Combine the
+unmarked/non-compliant status selections with OR semantics, then AND that status result with
+missing-evidence, risk-raised, and case-insensitive search facets. Persist filter, search,
+collapsed-section, and focused-control state in typed URL query parameters. Keep keyboard
+coordination and restoration in `use-review-productivity`, while the assessment client
+retains all network persistence.
+
+**Context:** A production questionnaire can contain 130 controls. The correct Stage 5 review
+loop had no progress visibility, targeted filtering, compact navigation, or refresh-safe
+working position, and extending the page component directly would have reversed the Stage 0
+decomposition.
+
+**Rationale:** The entire immutable questionnaire snapshot is already loaded and bounded, so
+local pure computation avoids new API latency and authorization surface. URL state makes a
+reviewer's working set recoverable and linkable without persisting presentation preferences
+to MongoDB. A dedicated orchestration hook keeps derived UI state out of the page's workflow
+and network boundary. Suppressed controls must be absent from the denominator, facets,
+search, and keyboard order because the server completion gate does not require verdicts for
+them.
+
+**Alternatives rejected:** Server-side filtering — adds round trips and new query contracts
+for already-loaded data. Component-only state — loses refresh and shared-link continuity.
+Pixel scroll restoration — becomes unstable as filters and section disclosure change row
+layout. Global shortcuts inside text-entry controls — would hijack reviewer input and
+assistive-technology interaction.
+
+**Consequences:** The review URL now recognizes `q`, `review`, `evidence`, `risk`,
+`collapsed`, and `focus`. Filters lock matching sections open; clearing them restores the
+persisted disclosure state. `j`/`k`, `c`/`x`, `n`, `/`, and `?` operate only outside
+text-entry contexts, and a shortcut dialog documents them. Existing PATCH, resend,
+completion, authorization, and data-model behavior is unchanged.
+
+**Decided by:** Project owner through `REVIEWER-EXPERIENCE-PLAN.md` Stage 3; implementation
+detail reasoned by Codex (GPT-5).
+
+---
+
 ## [2026-08-20] 048 — Demo review data has exact verdict profiles and uses production service boundaries
 
 **Decision:** Use a 25-control frozen demo snapshot so the strong and weak compliance

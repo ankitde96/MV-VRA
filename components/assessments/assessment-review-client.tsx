@@ -15,11 +15,17 @@ import { StatusBadge } from "@/components/domain/status-badge";
 import type { ReviewerQuestionItem } from "@/lib/services/assessment-review";
 import { useDebouncedAutosave } from "@/hooks/use-debounced-autosave";
 import { ReviewSection } from "@/components/assessments/review/review-section";
+import { ReviewToolbar } from "@/components/assessments/review/review-toolbar";
+import { ReviewShortcutsDialog } from "@/components/assessments/review/review-shortcuts-dialog";
 import {
   createInitialReviewState,
   reviewStateReducer,
   type ReviewVerdict,
 } from "@/components/assessments/review/review-state";
+import {
+  REVIEW_SEARCH_INPUT_ID,
+  useReviewProductivity,
+} from "@/hooks/use-review-productivity";
 
 interface AssessmentReviewClientProps {
   initialData: {
@@ -132,15 +138,6 @@ export function AssessmentReviewClient({
 
   const isCompleted = assessment.status === "completed";
 
-  // Group questions by section
-  const sectionsMap = new Map<string, ReviewerQuestionItem[]>();
-  for (const q of questions) {
-    sectionsMap.set(q.section_title, [
-      ...(sectionsMap.get(q.section_title) ?? []),
-      q,
-    ]);
-  }
-
   async function handleCompleteReview() {
     setCompleting(true);
     try {
@@ -176,6 +173,7 @@ export function AssessmentReviewClient({
         controlId,
         verdict: reviewStatus,
       });
+      dispatchReviewState({ type: "save_started", controlId });
       scheduleVerdict(controlId, {
         review_status: reviewStatus,
         reviewer_note: reviewerNote,
@@ -192,6 +190,7 @@ export function AssessmentReviewClient({
         note: reviewerNote,
       });
       if (verdict) {
+        dispatchReviewState({ type: "save_started", controlId });
         scheduleVerdict(controlId, {
           review_status: verdict,
           reviewer_note: reviewerNote,
@@ -200,6 +199,53 @@ export function AssessmentReviewClient({
     },
     [scheduleVerdict],
   );
+
+  const retryVerdict = useCallback(
+    (controlId: string) => {
+      const current = reviewState[controlId];
+      if (!current?.verdict) return;
+      dispatchReviewState({ type: "save_started", controlId });
+      scheduleVerdict(controlId, {
+        review_status: current.verdict,
+        reviewer_note: current.note,
+      });
+    },
+    [reviewState, scheduleVerdict],
+  );
+
+  const markVerdictFromKeyboard = useCallback(
+    (controlId: string, verdict: Exclude<ReviewVerdict, null>) => {
+      const current = reviewState[controlId];
+      if (current) saveVerdict(controlId, verdict, current.note);
+    },
+    [reviewState, saveVerdict],
+  );
+  const {
+    filters,
+    searchQuery,
+    setSearchQuery,
+    focusedControlId,
+    shortcutsOpen,
+    setShortcutsOpen,
+    progress,
+    facetCounts,
+    filteredControlIds,
+    filtersActive,
+    collapsedSectionSet,
+    visibleSections,
+    toggleStatusFilter,
+    toggleMissingEvidence,
+    toggleRiskRaised,
+    clearProductivityFilters,
+    toggleAllSections,
+    toggleSection,
+    focusControl,
+  } = useReviewProductivity({
+    questions,
+    reviewState,
+    canEdit: !isCompleted,
+    onMarkVerdict: markVerdictFromKeyboard,
+  });
 
   async function handleResend() {
     setResending(true);
@@ -416,23 +462,73 @@ export function AssessmentReviewClient({
 
       {/* Question Responses Evaluation by Section */}
       <section className="space-y-6">
-        <h2 className="text-foreground text-base font-semibold">
-          Questionnaire Evaluation
-        </h2>
+        <div>
+          <h2 className="text-foreground text-base font-semibold">
+            Questionnaire Evaluation
+          </h2>
+          <p className="text-muted-foreground mt-1 text-xs">
+            Filter the visible review set or use keyboard shortcuts to move and
+            mark controls quickly.
+          </p>
+        </div>
 
-        {[...sectionsMap.entries()].map(([sectionTitle, sectionQuestions]) => (
-          <ReviewSection
-            key={sectionTitle}
-            title={sectionTitle}
-            questions={sectionQuestions}
-            reviewState={reviewState}
-            isCompleted={isCompleted}
-            onVerdictChange={saveVerdict}
-            onNoteChange={saveReviewerNote}
-            onRaiseRisk={openRaiseRiskModal}
-          />
-        ))}
+        <ReviewToolbar
+          progress={progress}
+          facetCounts={facetCounts}
+          filters={filters}
+          query={searchQuery}
+          matchingCount={filteredControlIds.length}
+          allSectionsExpanded={filtersActive || collapsedSectionSet.size === 0}
+          sectionsLockedOpen={filtersActive}
+          searchInputId={REVIEW_SEARCH_INPUT_ID}
+          onQueryChange={setSearchQuery}
+          onToggleStatus={toggleStatusFilter}
+          onToggleMissingEvidence={toggleMissingEvidence}
+          onToggleRiskRaised={toggleRiskRaised}
+          onClearFilters={clearProductivityFilters}
+          onToggleAllSections={toggleAllSections}
+          onOpenShortcuts={() => setShortcutsOpen(true)}
+        />
+
+        {visibleSections.length === 0 ? (
+          <div className="text-muted-foreground rounded-lg border border-dashed p-10 text-center text-sm">
+            No controls match the current review filters.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {visibleSections.map((section) => (
+              <ReviewSection
+                key={section.title}
+                title={section.title}
+                questions={section.questions}
+                sectionIndex={section.index}
+                expanded={
+                  filtersActive ||
+                  section.questions.some(
+                    (question) => question.control_id === focusedControlId,
+                  ) ||
+                  !collapsedSectionSet.has(section.index)
+                }
+                filtersActive={filtersActive}
+                focusedControlId={focusedControlId}
+                reviewState={reviewState}
+                isCompleted={isCompleted}
+                onVerdictChange={saveVerdict}
+                onNoteChange={saveReviewerNote}
+                onRaiseRisk={openRaiseRiskModal}
+                onToggle={() => toggleSection(section.index)}
+                onFocusControl={focusControl}
+                onRetry={retryVerdict}
+              />
+            ))}
+          </div>
+        )}
       </section>
+
+      <ReviewShortcutsDialog
+        open={shortcutsOpen}
+        onOpenChange={setShortcutsOpen}
+      />
 
       {/* Raise Risk Dialog Modal */}
       {dialogControlId ? (

@@ -122,12 +122,8 @@ test.describe("assessment correction round", () => {
     await signInInternal(page);
     await page.goto(`/assessments/${assessmentId}`);
 
-    const approved = page
-      .locator("div.rounded-md.border", { hasText: "CORR-01" })
-      .last();
-    const revise = page
-      .locator("div.rounded-md.border", { hasText: "CORR-02" })
-      .last();
+    const approved = page.locator('[data-review-control="CORR-01"]');
+    const revise = page.locator('[data-review-control="CORR-02"]');
     await approved
       .getByRole("button", { name: "Compliant", exact: true })
       .click();

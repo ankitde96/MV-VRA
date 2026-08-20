@@ -1,6 +1,6 @@
 # REVIEWER-EXPERIENCE-PLAN.md — Reviewer Experience & Reporting Upgrade
 
-> **Status: Stages 0–2 complete and verified on 2026-08-20. Stages 3–7 remain plan-only.**
+> **Status: Stages 0–3 complete and verified on 2026-08-20. Stages 4–7 remain plan-only.**
 > Produced through the brainstorming workflow on 2026-08-20. Supersedes nothing; extends
 > the completed work in `docs/ASSESSMENT-WORKFLOW-PLAN.md` (Stages 1–5, all shipped).
 >
@@ -207,6 +207,9 @@ run and that no non-demo record was touched.
 ---
 
 ## Stage 3 — Bulk review + reviewer productivity
+
+**Status: ✅ Complete and verified on 2026-08-20.** See
+`docs/features/reviewer-experience-stage-3-productivity.md` and `DECISIONS.md` 049.
 
 **Goal.** Make 130 controls navigable. Requested areas #1 and #5 (decision R10).
 

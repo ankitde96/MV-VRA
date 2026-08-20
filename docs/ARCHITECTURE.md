@@ -58,6 +58,14 @@ writes response/evidence fixtures, delegates risk/CAP creation to
 cleanup is resolved from workspace-scoped `.demo.mv-vra.local` vendor ids; storage reset is
 limited to `<workspace_id>/reviewer-demo-v2`. See `DECISIONS.md` 048.
 
+**Reviewer experience Stage 3 (2026-08-20):** Review workflow/network writes remain in
+`AssessmentReviewClient`; `hooks/use-review-productivity.ts` now owns the bounded client-side
+view model for progress, facets, search, section disclosure, focused-control restoration,
+and keyboard coordination. Pure calculation and URL parsing/serialization live under
+`components/assessments/review/`. Suppressed controls are excluded from every actionable
+review set. No service, repository, authorization, API, or schema boundary changed. See
+`DECISIONS.md` 049.
+
 ## 1. What this system is
 
 **MV-VRA** (MoneyView Vendor Risk Assessment) is a centralized system of record for

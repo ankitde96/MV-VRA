@@ -320,7 +320,11 @@ real vendor/risk counts and omitted the second entirely, and `authorized_workspa
    autosave persists verdict and note and advances `submitted → under_review`. The client
    keeps this orchestration in `assessment-review-client.tsx`, while reducer-owned state is
    rendered through `review/ReviewSection` and memoized `review/ReviewQuestionRow` components
-   (`DECISIONS.md` 046); the request and service path is unchanged.
+   (`DECISIONS.md` 046); the request and service path is unchanged. Stage 3 adds a sticky
+   progress/filter/search toolbar, disclosure controls, keyboard navigation and verdict
+   actions, URL-restored focus, and explicit saving/saved/error-with-retry row feedback.
+   `use-review-productivity` owns only this bounded client view model; suppressed controls
+   never enter progress, facets, filtered results, or keyboard order (`DECISIONS.md` 049).
 2. Request changes refuses an empty non-compliant set, then query-guards the source status,
    increments `review_round`, stamps the reviewer, audits, emails recipients, and moves to
    `changes_requested`.

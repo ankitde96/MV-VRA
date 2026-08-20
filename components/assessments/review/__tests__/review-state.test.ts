@@ -7,12 +7,14 @@ describe("reviewStateReducer", () => {
       verdict: null,
       note: "",
       savedAt: null,
+      saving: false,
       error: false,
     },
     "CTRL-2": {
       verdict: "compliant",
       note: "Existing note",
       savedAt: null,
+      saving: false,
       error: false,
     },
   };
@@ -30,7 +32,11 @@ describe("reviewStateReducer", () => {
 
   it("records successful and failed saves", () => {
     const savedAt = new Date("2026-08-20T00:00:00.000Z");
-    const failed = reviewStateReducer(initialState, {
+    const saving = reviewStateReducer(initialState, {
+      type: "save_started",
+      controlId: "CTRL-1",
+    });
+    const failed = reviewStateReducer(saving, {
       type: "save_failed",
       controlId: "CTRL-1",
     });
@@ -40,8 +46,13 @@ describe("reviewStateReducer", () => {
       savedAt,
     });
 
-    expect(failed["CTRL-1"]?.error).toBe(true);
-    expect(saved["CTRL-1"]).toMatchObject({ savedAt, error: false });
+    expect(saving["CTRL-1"]).toMatchObject({ saving: true, error: false });
+    expect(failed["CTRL-1"]).toMatchObject({ saving: false, error: true });
+    expect(saved["CTRL-1"]).toMatchObject({
+      savedAt,
+      saving: false,
+      error: false,
+    });
   });
 
   it("ignores an unknown control", () => {

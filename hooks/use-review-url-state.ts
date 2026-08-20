@@ -1,12 +1,17 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { parseReviewUrlState } from "@/components/assessments/review/review-url-state";
 
 export function useReviewUrlState() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const reviewUrlState = useMemo(
+    () => parseReviewUrlState(searchParams),
+    [searchParams],
+  );
 
   const updateReviewUrlState = useCallback(
     (updates: Record<string, string | null>) => {
@@ -23,5 +28,5 @@ export function useReviewUrlState() {
     [pathname, router, searchParams],
   );
 
-  return { searchParams, updateReviewUrlState };
+  return { ...reviewUrlState, updateReviewUrlState };
 }

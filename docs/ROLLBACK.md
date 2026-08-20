@@ -34,6 +34,25 @@ For anything smaller, `git diff` and `git restore` are sufficient.
 Overwrite this block at the start of each risky change. One at a time.
 
 ```
+Reviewer experience upgrade — Stage 3: bulk review and reviewer productivity
+(2026-08-20, DONE). Safe baseline: 8aa27a0c2fe353af3721b08435f0cfbaae227c8d
+(origin/main; clean worktree at stage start).
+
+Client-only review-page enhancement: pure filter/progress helpers, typed URL state,
+keyboard navigation, sticky controls, collapsible sections, and explicit autosave status.
+No schema, API contract, authentication, tenant query, storage, dependency, or migration
+change. Existing verdict PATCH/resend/completion paths remain the only persistence writers.
+
+Reversible by restoring the Stage 3 component/hook/test/documentation files from the safe
+baseline. URL query parameters introduced by this stage are inert if the UI is reverted;
+saved response verdicts and notes remain valid existing data.
+
+Verified: pure productivity/reducer tests passed 2 files/7 tests; desktop and mobile Stage 3
+plus correction-round Playwright journeys passed 4/4; `21st review` reported 0 findings;
+`npm run verify` passed 34 files/248 tests and the 35-page production build.
+
+Prior active plan (closed):
+
 Reviewer experience upgrade — Stage 2: demo data v2
 (2026-08-20, DONE). Safe baseline: 2ae938cef144
 (origin/main; clean worktree at stage start).

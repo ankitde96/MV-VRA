@@ -6,6 +6,7 @@ export interface ReviewItemState {
   verdict: ReviewVerdict;
   note: string;
   savedAt: Date | null;
+  saving: boolean;
   error: boolean;
 }
 
@@ -14,6 +15,7 @@ export type ReviewState = Record<string, ReviewItemState>;
 export type ReviewStateAction =
   | { type: "verdict_changed"; controlId: string; verdict: ReviewVerdict }
   | { type: "note_changed"; controlId: string; note: string }
+  | { type: "save_started"; controlId: string }
   | { type: "save_succeeded"; controlId: string; savedAt: Date }
   | { type: "save_failed"; controlId: string };
 
@@ -27,6 +29,7 @@ export function createInitialReviewState(
         verdict: question.review_status,
         note: question.reviewer_note,
         savedAt: null,
+        saving: false,
         error: false,
       },
     ]),
@@ -51,19 +54,25 @@ export function reviewStateReducer(
         ...state,
         [action.controlId]: { ...current, note: action.note },
       };
+    case "save_started":
+      return {
+        ...state,
+        [action.controlId]: { ...current, saving: true, error: false },
+      };
     case "save_succeeded":
       return {
         ...state,
         [action.controlId]: {
           ...current,
           savedAt: action.savedAt,
+          saving: false,
           error: false,
         },
       };
     case "save_failed":
       return {
         ...state,
-        [action.controlId]: { ...current, error: true },
+        [action.controlId]: { ...current, saving: false, error: true },
       };
   }
 }
