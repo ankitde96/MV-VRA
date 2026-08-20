@@ -6,7 +6,6 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { RaiseRiskDialog } from "@/components/risks/raise-risk-dialog";
 import {
   SeverityBadge,
@@ -18,6 +17,8 @@ import { useDebouncedAutosave } from "@/hooks/use-debounced-autosave";
 import { ReviewSection } from "@/components/assessments/review/review-section";
 import { ReviewToolbar } from "@/components/assessments/review/review-toolbar";
 import { ReviewShortcutsDialog } from "@/components/assessments/review/review-shortcuts-dialog";
+import { ReviewCompletionDialog } from "@/components/assessments/review/review-completion-dialog";
+import type { AssessmentCompletionSummary } from "@/lib/services/assessment-report";
 import {
   createInitialReviewState,
   reviewStateReducer,
@@ -99,7 +100,6 @@ export function AssessmentReviewClient({
     risks,
     enterprise_risk_categories,
     is_provisional_taxonomy,
-    cap_completeness,
     metrics,
   } = initialData;
 
@@ -107,7 +107,9 @@ export function AssessmentReviewClient({
   const [dialogTitle, setDialogTitle] = useState("");
   const [dialogDescription, setDialogDescription] = useState("");
   const [completing, setCompleting] = useState(false);
-  const [capWarningAcknowledged, setCapWarningAcknowledged] = useState(false);
+  const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
+  const [completionSummary, setCompletionSummary] =
+    useState<AssessmentCompletionSummary | null>(null);
   const [resending, setResending] = useState(false);
   const [reviewState, dispatchReviewState] = useReducer(
     reviewStateReducer,
@@ -151,18 +153,39 @@ export function AssessmentReviewClient({
 
   const isCompleted = assessment.status === "completed";
 
-  async function handleCompleteReview() {
+  async function openCompletionDialog() {
     setCompleting(true);
     try {
       if ((await flushVerdicts()).some((saved) => !saved)) return;
+      const response = await fetch(
+        `/api/assessments/${assessment.id}/completion-summary`,
+      );
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        toast.error(
+          body?.message ?? "Could not prepare the completion summary.",
+        );
+        return;
+      }
+      setCompletionSummary(await response.json());
+      setCompletionDialogOpen(true);
+    } catch {
+      toast.error("Could not prepare the completion summary.");
+    } finally {
+      setCompleting(false);
+    }
+  }
+
+  async function handleCompleteReview(overrideIncompleteCapTasks: boolean) {
+    setCompleting(true);
+    try {
       const res = await fetch(
         `/api/assessments/${assessment.id}/complete-review`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            override_incomplete_cap_tasks:
-              cap_completeness.incomplete_tasks > 0 && capWarningAcknowledged,
+            override_incomplete_cap_tasks: overrideIncompleteCapTasks,
           }),
         },
       );
@@ -171,6 +194,7 @@ export function AssessmentReviewClient({
         toast.error(body?.message ?? "Failed to complete review.");
         return;
       }
+      setCompletionDialogOpen(false);
       toast.success("Review completed.");
       router.refresh();
     } catch {
@@ -377,21 +401,8 @@ export function AssessmentReviewClient({
               >
                 {resending ? "Returning…" : "Request changes"}
               </Button>
-              <Button
-                onClick={handleCompleteReview}
-                disabled={
-                  completing ||
-                  (cap_completeness.incomplete_tasks > 0 &&
-                    !capWarningAcknowledged)
-                }
-                title={
-                  cap_completeness.incomplete_tasks > 0 &&
-                  !capWarningAcknowledged
-                    ? "Acknowledge the incomplete CAP warning before completing"
-                    : undefined
-                }
-              >
-                {completing ? "Completing…" : "Complete Review"}
+              <Button onClick={openCompletionDialog} disabled={completing}>
+                {completing ? "Preparing…" : "Complete Review"}
               </Button>
             </div>
           ) : (
@@ -419,47 +430,6 @@ export function AssessmentReviewClient({
             Provisional
           </Badge>
         </div>
-      ) : null}
-
-      {!isCompleted && cap_completeness.incomplete_tasks > 0 ? (
-        <section
-          id="cap-completeness-warning"
-          className="space-y-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-950 dark:text-amber-100"
-          role="status"
-        >
-          <div>
-            <p className="font-semibold">
-              {cap_completeness.incomplete_tasks} corrective action task
-              {cap_completeness.incomplete_tasks === 1 ? "" : "s"} need
-              completion details
-            </p>
-            <p className="mt-1 text-xs opacity-80">
-              Add the missing owner or due date in the risk register. This is an
-              advisory warning and may be explicitly overridden without
-              weakening the existing review gates.
-            </p>
-          </div>
-          <ul className="space-y-1 text-xs">
-            {cap_completeness.issues.map((issue) => (
-              <li key={`${issue.risk_id}-${issue.task_id}`}>
-                <span className="font-medium">{issue.risk_title}:</span>{" "}
-                {issue.task_description} — missing{" "}
-                {issue.missing_fields.join(" and ")}
-              </li>
-            ))}
-          </ul>
-          <label className="flex cursor-pointer items-start gap-2 text-xs font-medium">
-            <Checkbox
-              checked={capWarningAcknowledged}
-              onCheckedChange={(checked) =>
-                setCapWarningAcknowledged(Boolean(checked))
-              }
-              aria-describedby="cap-completeness-warning"
-            />
-            I acknowledge these incomplete CAP details and want to complete the
-            review anyway. This override will be audited.
-          </label>
-        </section>
       ) : null}
 
       {/* Metrics Bar */}
@@ -602,6 +572,8 @@ export function AssessmentReviewClient({
               ? `/api/assessments/${assessment.id}/evidence/export`
               : null
           }
+          reportCsvUrl={`/api/assessments/${assessment.id}/exports/csv`}
+          reportPdfUrl={`/api/assessments/${assessment.id}/exports/pdf`}
         />
 
         {visibleSections.length === 0 ? (
@@ -643,6 +615,13 @@ export function AssessmentReviewClient({
       <ReviewShortcutsDialog
         open={shortcutsOpen}
         onOpenChange={setShortcutsOpen}
+      />
+      <ReviewCompletionDialog
+        open={completionDialogOpen}
+        summary={completionSummary}
+        submitting={completing}
+        onOpenChange={setCompletionDialogOpen}
+        onConfirm={handleCompleteReview}
       />
 
       {/* Raise Risk Dialog Modal */}

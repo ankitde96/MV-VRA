@@ -34,6 +34,8 @@ interface ReviewToolbarProps {
   onToggleAllSections: () => void;
   onOpenShortcuts: () => void;
   evidenceExportUrl: string | null;
+  reportCsvUrl: string;
+  reportPdfUrl: string;
 }
 
 function FacetButton({
@@ -86,6 +88,8 @@ export function ReviewToolbar({
   onToggleAllSections,
   onOpenShortcuts,
   evidenceExportUrl,
+  reportCsvUrl,
+  reportPdfUrl,
 }: ReviewToolbarProps) {
   const hasFilters =
     filters.statuses.length > 0 ||
@@ -183,6 +187,14 @@ export function ReviewToolbar({
             Download evidence ZIP
           </Button>
         ) : null}
+        <Button size="xs" variant="outline" render={<a href={reportCsvUrl} />}>
+          <DownloadIcon />
+          CSV report
+        </Button>
+        <Button size="xs" variant="outline" render={<a href={reportPdfUrl} />}>
+          <DownloadIcon />
+          PDF report
+        </Button>
         <Button
           type="button"
           size="xs"

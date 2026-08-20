@@ -22,6 +22,15 @@ import { recordAuditEvent } from "@/lib/audit/record-event";
 import { getMailer } from "@/lib/mail";
 import { toObjectId, type TenantContext } from "@/lib/tenant/context";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
+import {
+  AssessmentReportService,
+  getCapCompletenessSummary,
+} from "@/lib/services/assessment-report";
+
+export type {
+  CapCompletenessIssue,
+  CapCompletenessSummary,
+} from "@/lib/services/assessment-report";
 
 export const DEFAULT_ENTERPRISE_RISK_CATEGORIES = [
   "Information Security",
@@ -115,63 +124,6 @@ export interface OverdueCapQueueItem {
   newly_escalated: boolean;
 }
 
-export interface CapCompletenessIssue {
-  risk_id: string;
-  risk_title: string;
-  task_id: string;
-  task_description: string;
-  missing_fields: Array<"owner" | "due_date">;
-}
-
-export interface CapCompletenessSummary {
-  incomplete_tasks: number;
-  issues: CapCompletenessIssue[];
-}
-
-function getCapCompletenessSummary(
-  risks: Array<{
-    _id: Types.ObjectId;
-    title: string;
-    cap_tasks?: unknown[];
-  }>,
-): CapCompletenessSummary {
-  const issues: CapCompletenessIssue[] = [];
-
-  for (const risk of risks) {
-    for (const rawTask of risk.cap_tasks ?? []) {
-      const task = rawTask as {
-        task_id?: Types.ObjectId;
-        description?: string;
-        owner_type?: string;
-        owner_ref?: Types.ObjectId;
-        due_date?: Date;
-      };
-      const missingFields: CapCompletenessIssue["missing_fields"] = [];
-      if (
-        !["internal", "vendor"].includes(task.owner_type ?? "") ||
-        !task.owner_ref
-      ) {
-        missingFields.push("owner");
-      }
-      const dueDate = task.due_date ? new Date(task.due_date) : null;
-      if (!dueDate || Number.isNaN(dueDate.getTime())) {
-        missingFields.push("due_date");
-      }
-      if (missingFields.length > 0) {
-        issues.push({
-          risk_id: risk._id.toString(),
-          risk_title: risk.title,
-          task_id: task.task_id?.toString() ?? "unknown",
-          task_description: task.description ?? "Corrective action task",
-          missing_fields: missingFields,
-        });
-      }
-    }
-  }
-
-  return { incomplete_tasks: issues.length, issues };
-}
-
 export interface ReviewerQuestionItem {
   control_id: string;
   text: string;
@@ -217,6 +169,7 @@ export class AssessmentReviewService {
   private responseRepo: ResponseRepository;
   private riskRepo: RiskRepository;
   private workspaceRepo: WorkspaceRepository;
+  private reportService: AssessmentReportService;
 
   constructor(private ctx: TenantContext) {
     this.assessmentRepo = new AssessmentRepository(ctx);
@@ -225,6 +178,11 @@ export class AssessmentReviewService {
     this.responseRepo = new ResponseRepository(ctx);
     this.riskRepo = new RiskRepository(ctx);
     this.workspaceRepo = new WorkspaceRepository();
+    this.reportService = new AssessmentReportService(ctx);
+  }
+
+  async getCompletionSummary(assessmentId: string) {
+    return (await this.reportService.getReport(assessmentId)).summary;
   }
 
   /**
@@ -1086,44 +1044,19 @@ export class AssessmentReviewService {
     if (!["submitted", "under_review"].includes(assessment.status)) {
       throw new ForbiddenError("Only submitted assessments can be completed");
     }
-    const [responses, risks] = await Promise.all([
-      this.responseRepo.findByAssessment(assessmentId).lean(),
-      this.riskRepo.find({ assessment_id: assessment._id }).lean(),
-    ]);
-    const schema = assessment.template_snapshot as QuestionsSchema;
-    const answers = Object.fromEntries(
-      responses.map((response) => [
-        response.control_id,
-        response.response_value,
-      ]),
-    ) as AnswersMap;
-    const visibility = computeVisibility(schema, answers);
-    const responseByControl = new Map(
-      responses.map((response) => [response.control_id, response]),
-    );
-    const riskControls = new Set(risks.map((risk) => risk.control_id));
-    const unmarked: string[] = [];
-    const withoutRisk: string[] = [];
-    for (const question of schema.sections.flatMap(
-      (section) => section.questions,
-    )) {
-      if (!visibility.get(question.control_id)) continue;
-      const verdict = responseByControl.get(question.control_id)?.review_status;
-      if (!verdict) unmarked.push(question.control_id);
-      else if (
-        verdict === "non_compliant" &&
-        !riskControls.has(question.control_id)
-      ) {
-        withoutRisk.push(question.control_id);
-      }
-    }
+    const reviewedAt = new Date();
+    const report = await this.reportService.getReport(assessmentId, reviewedAt);
+    const {
+      unmarked_control_ids: unmarked,
+      non_compliant_without_risk_control_ids: withoutRisk,
+    } = report.summary.blockers;
     if (unmarked.length || withoutRisk.length) {
       throw new ValidationError(
         `Review incomplete — unmarked: ${unmarked.join(", ") || "none"}; non-compliant without risk: ${withoutRisk.join(", ") || "none"}`,
       );
     }
 
-    const capCompleteness = getCapCompletenessSummary(risks);
+    const capCompleteness = report.summary.cap_completeness;
     if (
       capCompleteness.incomplete_tasks > 0 &&
       !options.override_incomplete_cap_tasks
@@ -1138,25 +1071,8 @@ export class AssessmentReviewService {
     // workspace's configured cadence at the moment review completes; an unscored vendor
     // (tier null) gets no next_review_due rather than a fabricated one — the "unscored
     // vendor" KRI already covers that gap.
-    const vendor = await this.vendorRepo.findById(assessment.vendor_id).lean();
-    const workspace = await this.workspaceRepo
-      .findById(this.ctx.workspaceId)
-      .lean();
-    const cadenceByTier: Record<number, number | undefined> = {
-      1: workspace?.settings?.reassessment_cadence_months?.tier1,
-      2: workspace?.settings?.reassessment_cadence_months?.tier2,
-      3: workspace?.settings?.reassessment_cadence_months?.tier3,
-    };
-    const cadenceMonths = vendor?.inherent_risk_tier
-      ? cadenceByTier[vendor.inherent_risk_tier]
-      : undefined;
-    const reviewedAt = new Date();
-    const nextReviewDue = cadenceMonths
-      ? new Date(
-          reviewedAt.getFullYear(),
-          reviewedAt.getMonth() + cadenceMonths,
-          reviewedAt.getDate(),
-        )
+    const nextReviewDue = report.summary.next_review_due
+      ? new Date(report.summary.next_review_due)
       : null;
 
     await this.assessmentRepo.updateOne(

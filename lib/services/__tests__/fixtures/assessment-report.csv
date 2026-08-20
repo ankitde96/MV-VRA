@@ -1,0 +1,2 @@
+Control ID,Section,Question,Response,Verdict,Reviewer Note,Evidence Count,Insufficiency Flags,Linked Risk IDs,Linked Risk Severities
+SEC-01,Security,"Does the vendor encrypt data, including backups?","Yes, ""AES-256""",non_compliant,Backup evidence needs review.,1,backup.pdf: Scope does not include backups,risk-1,high

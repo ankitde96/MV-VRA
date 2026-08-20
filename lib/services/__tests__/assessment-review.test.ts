@@ -10,7 +10,9 @@ import { Risk } from "@/lib/db/models/risk";
 import { User } from "@/lib/db/models/user";
 import { AuditEvent } from "@/lib/db/models/audit-event";
 import { Response } from "@/lib/db/models/response";
+import { QuestionnaireTemplate } from "@/lib/db/models/questionnaire-template";
 import { AssessmentReviewService } from "@/lib/services/assessment-review";
+import { AssessmentReportService } from "@/lib/services/assessment-report";
 import { getMailer } from "@/lib/mail";
 
 /**
@@ -117,6 +119,9 @@ describe("AssessmentReviewService (integration)", () => {
         workspace_id: { $in: [workspaceId, otherWorkspaceId] },
       }),
       Response.deleteMany({
+        workspace_id: { $in: [workspaceId, otherWorkspaceId] },
+      }),
+      QuestionnaireTemplate.deleteMany({
         workspace_id: { $in: [workspaceId, otherWorkspaceId] },
       }),
       User.deleteMany({
@@ -519,6 +524,86 @@ describe("AssessmentReviewService (integration)", () => {
     expect(storedAssessment?.next_review_due?.getTime()).toBe(
       expected.getTime(),
     );
+  });
+
+  it("builds completion summaries and historical exports from the frozen assessment snapshot", async () => {
+    await dbConnect();
+    const assessment = await seedFixtures();
+    await Assessment.updateOne(
+      { _id: assessment._id },
+      {
+        $set: {
+          template_name: "Frozen Security Review",
+          template_snapshot: {
+            schema_format_version: 1,
+            sections: [
+              {
+                id: "security",
+                title: "Security",
+                questions: [
+                  {
+                    control_id: "SEC-01",
+                    text: "Frozen question text",
+                    type: "text",
+                    required: true,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    );
+    await Response.create({
+      workspace_id: workspaceId,
+      assessment_id: assessment._id,
+      control_id: "SEC-01",
+      question_text: "Frozen question text",
+      response_value: "Yes",
+      review_status: "compliant",
+      reviewer_note: "Verified",
+      reviewed_at: new Date(),
+      reviewed_by: businessOwnerId,
+    });
+    await QuestionnaireTemplate.create({
+      workspace_id: workspaceId,
+      template_key: "security-review",
+      version: 2,
+      name: "Changed Security Review",
+      status: "published",
+      questions_schema: {
+        schema_format_version: 1,
+        sections: [
+          {
+            id: "security",
+            title: "Security",
+            questions: [
+              {
+                control_id: "SEC-01",
+                text: "Later template text",
+                type: "text",
+                required: true,
+              },
+            ],
+          },
+        ],
+      },
+      schema_format_version: 1,
+      published_at: new Date(),
+    });
+
+    const summary = await new AssessmentReviewService({
+      workspaceId,
+    }).getCompletionSummary(assessment._id.toString());
+    expect(summary).toMatchObject({
+      controls: { reviewed: 1, total: 1, compliant: 1, unmarked: 0 },
+      can_complete: true,
+    });
+    const report = await new AssessmentReportService({ workspaceId }).getReport(
+      assessment._id.toString(),
+    );
+    expect(report.assessment.template_name).toBe("Frozen Security Review");
+    expect(report.controls[0]?.question).toBe("Frozen question text");
   });
 
   it("completeReview() leaves next_review_due null when the vendor is unscored (no tier)", async () => {

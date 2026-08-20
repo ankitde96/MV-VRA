@@ -34,6 +34,29 @@ For anything smaller, `git diff` and `git restore` are sufficient.
 Overwrite this block at the start of each risky change. One at a time.
 
 ```
+Reviewer experience upgrade — Stage 6: completion workflow and exports
+(2026-08-20, DONE). Safe baseline: a78784873258c2e4001f0cbf3458f29a60fedb14
+(origin/main; clean worktree at stage start).
+
+Add a server-owned completion/report model, confirmation dialog, internal CSV and PDF
+exports, and review-page export actions. The PDF renderer is a new pinned dependency. No
+schema, migration, session, capability, tenant-scoping, template-write, storage, scoring,
+or existing hard completion-gate change is planned; historical exports read only the frozen
+assessment snapshot and workspace-scoped assessment records.
+
+Reversible by restoring the Stage 6 service/route/component/test/dependency/documentation
+files from the safe baseline and reinstalling the baseline lockfile. Generated downloads are
+ephemeral response bodies and leave no persisted records; no data cleanup is required.
+
+Verified: golden CSV/PDF and completion/report service coverage passed 2 files/25 tests;
+the full unit/integration suite passed 37 files/264 tests; the disposable desktop/mobile
+reviewer-remediation journey passed 2/2 and verifies authenticated CSV/PDF responses,
+server summary confirmation, CAP acknowledgement, completion, and audit persistence; the
+production build completed; `21st review` found no new browser-UI issue (only existing
+repository primitive findings and informational print-PDF color notices).
+
+Prior active plan (closed):
+
 Reviewer experience upgrade — Stage 5: risk and remediation integration
 (2026-08-20, DONE). Safe baseline: 1c76c4413716dc39449cc2d2d18f8c72ce161916
 (origin/main; clean worktree at stage start).

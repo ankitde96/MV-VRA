@@ -244,14 +244,41 @@ test.describe("reviewer risk and remediation", () => {
       control.getByText("1 risk linked", { exact: true }),
     ).toBeVisible();
 
-    const warning = page.locator("#cap-completeness-warning");
-    await expect(warning).toContainText("1 corrective action task");
+    const csvLink = page.getByRole("button", { name: "CSV report" });
+    const pdfLink = page.getByRole("button", { name: "PDF report" });
+    const csvResponse = await page.request.get(
+      (await csvLink.getAttribute("href"))!,
+    );
+    expect(csvResponse.status()).toBe(200);
+    expect(csvResponse.headers()["content-type"]).toContain("text/csv");
+    expect((await csvResponse.body()).subarray(0, 3)).toEqual(
+      Buffer.from([0xef, 0xbb, 0xbf]),
+    );
+    const pdfResponse = await page.request.get(
+      (await pdfLink.getAttribute("href"))!,
+    );
+    expect(pdfResponse.status()).toBe(200);
+    expect(pdfResponse.headers()["content-type"]).toBe("application/pdf");
+    expect((await pdfResponse.body()).subarray(0, 5).toString()).toBe("%PDF-");
+
     const completeButton = page.getByRole("button", {
       name: "Complete Review",
     });
-    await expect(completeButton).toBeDisabled();
-    await warning.getByRole("checkbox").click();
     await expect(completeButton).toBeEnabled();
+    await completeButton.click();
+    const completionDialog = page.getByRole("dialog", {
+      name: "Complete assessment review",
+    });
+    await expect(completionDialog).toContainText("2/2");
+    await expect(completionDialog).toContainText(
+      "Incomplete corrective action details",
+    );
+    const confirmButton = completionDialog.getByRole("button", {
+      name: "Confirm completion",
+    });
+    await expect(confirmButton).toBeDisabled();
+    await completionDialog.getByRole("checkbox").click();
+    await expect(confirmButton).toBeEnabled();
     const completed = page.waitForResponse(
       (response) =>
         response
@@ -259,7 +286,7 @@ test.describe("reviewer risk and remediation", () => {
           .endsWith(`/assessments/${assessmentId}/complete-review`) &&
         response.request().method() === "POST",
     );
-    await completeButton.click();
+    await confirmButton.click();
     expect((await completed).status()).toBe(200);
     await expect(
       page.getByRole("button", { name: "Review Completed" }),
