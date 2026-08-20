@@ -10,6 +10,7 @@ import {
   getReviewControlDomId,
   getReviewNoteDomId,
 } from "./review-productivity";
+import { ReviewEvidenceList } from "./review-evidence-list";
 
 const CONTROL_STATUS_BADGES: Record<
   ReviewerQuestionItem["control_status"],
@@ -58,6 +59,12 @@ interface ReviewQuestionRowProps {
   onRaiseRisk: (controlId: string, text: string, guidanceText?: string) => void;
   onFocusControl: (controlId: string) => void;
   onRetry: (controlId: string) => void;
+  onEvidenceFlagChange: (
+    controlId: string,
+    evidenceId: string,
+    flag: "insufficient" | null,
+    note: string,
+  ) => Promise<boolean>;
 }
 
 export const ReviewQuestionRow = memo(function ReviewQuestionRow({
@@ -70,6 +77,7 @@ export const ReviewQuestionRow = memo(function ReviewQuestionRow({
   onRaiseRisk,
   onFocusControl,
   onRetry,
+  onEvidenceFlagChange,
 }: ReviewQuestionRowProps) {
   const statusBadge = CONTROL_STATUS_BADGES[question.control_status];
 
@@ -210,31 +218,12 @@ export const ReviewQuestionRow = memo(function ReviewQuestionRow({
         </div>
 
         {question.evidence.length > 0 ? (
-          <div className="mt-2 space-y-1 border-t pt-2">
-            <span className="text-muted-foreground block text-[11px] font-semibold">
-              Attached Evidence ({question.evidence.length}):
-            </span>
-            <ul className="space-y-1">
-              {question.evidence.map((evidence) => (
-                <li
-                  key={evidence.id}
-                  className="flex items-center justify-between text-xs"
-                >
-                  <span>
-                    {evidence.filename} ({(evidence.size / 1024).toFixed(1)} KB)
-                  </span>
-                  <a
-                    href={evidence.download_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary font-medium hover:underline"
-                  >
-                    Download ↗
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <ReviewEvidenceList
+            controlId={question.control_id}
+            evidence={question.evidence}
+            canEdit={!question.is_suppressed && !isCompleted}
+            onFlagChange={onEvidenceFlagChange}
+          />
         ) : null}
       </div>
 

@@ -66,6 +66,15 @@ and keyboard coordination. Pure calculation and URL parsing/serialization live u
 review set. No service, repository, authorization, API, or schema boundary changed. See
 `DECISIONS.md` 049.
 
+**Reviewer experience Stage 4 (2026-08-20):** `AssessmentEvidenceService` is the shared
+tenant-scoped boundary for resolving evidence, atomically setting or clearing advisory
+flags through `ResponseRepository`, and assembling bounded ZIP exports. Internal downloads
+use internal membership routes and portal downloads retain their separate portal-session
+route; neither accepts a storage key from the request. All bytes flow through
+`getStorageDriver()`. ZIP preflight uses persisted file sizes and the configurable
+`EVIDENCE_ZIP_MAX_BYTES` ceiling before bodies are loaded, then `archiver` writes sanitized,
+collision-safe paths plus `manifest.csv` to the response stream. See `DECISIONS.md` 050.
+
 ## 1. What this system is
 
 **MV-VRA** (MoneyView Vendor Risk Assessment) is a centralized system of record for

@@ -1,6 +1,6 @@
 # REVIEWER-EXPERIENCE-PLAN.md — Reviewer Experience & Reporting Upgrade
 
-> **Status: Stages 0–3 complete and verified on 2026-08-20. Stages 4–7 remain plan-only.**
+> **Status: Stages 0–4 complete and verified on 2026-08-20. Stages 5–7 remain plan-only.**
 > Produced through the brainstorming workflow on 2026-08-20. Supersedes nothing; extends
 > the completed work in `docs/ASSESSMENT-WORKFLOW-PLAN.md` (Stages 1–5, all shipped).
 >
@@ -249,6 +249,9 @@ assistive-technology keys; every filter chip is a real toggle button with `aria-
 ---
 
 ## Stage 4 — Evidence review experience
+
+**Status: ✅ Complete and verified on 2026-08-20.** See
+`docs/features/reviewer-experience-stage-4-evidence-review.md` and `DECISIONS.md` 050.
 
 **Goal.** Requested area #2. **Open by confirming and fixing the defect in §2.1.**
 

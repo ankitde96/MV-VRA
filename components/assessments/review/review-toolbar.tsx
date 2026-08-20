@@ -2,6 +2,7 @@
 
 import {
   ChevronsUpDownIcon,
+  DownloadIcon,
   KeyboardIcon,
   RotateCcwIcon,
   SearchIcon,
@@ -32,6 +33,7 @@ interface ReviewToolbarProps {
   onClearFilters: () => void;
   onToggleAllSections: () => void;
   onOpenShortcuts: () => void;
+  evidenceExportUrl: string | null;
 }
 
 function FacetButton({
@@ -83,6 +85,7 @@ export function ReviewToolbar({
   onClearFilters,
   onToggleAllSections,
   onOpenShortcuts,
+  evidenceExportUrl,
 }: ReviewToolbarProps) {
   const hasFilters =
     filters.statuses.length > 0 ||
@@ -168,6 +171,16 @@ export function ReviewToolbar({
           >
             <RotateCcwIcon />
             Reset
+          </Button>
+        ) : null}
+        {evidenceExportUrl ? (
+          <Button
+            size="xs"
+            variant="outline"
+            render={<a href={evidenceExportUrl} />}
+          >
+            <DownloadIcon />
+            Download evidence ZIP
           </Button>
         ) : null}
         <Button

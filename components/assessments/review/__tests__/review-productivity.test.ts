@@ -46,6 +46,7 @@ const questions = [
         uploaded_at: "2026-08-20T00:00:00.000Z",
         uploaded_by_label: "Vendor SPOC",
         download_url: "/evidence/1",
+        flag: null,
       },
     ],
   }),
@@ -131,6 +132,41 @@ describe("review productivity helpers", () => {
         "",
       ).map((item) => item.control_id),
     ).toEqual(["CTRL-2"]);
+  });
+
+  it("treats insufficient evidence as a missing-evidence facet match", () => {
+    const flagged = [
+      question("CTRL-FLAG", {
+        evidence: [
+          {
+            ...questions[0]!.evidence[0]!,
+            flag: {
+              flag: "insufficient",
+              note: "Missing approval",
+              flagged_at: "2026-08-20T01:00:00.000Z",
+            },
+          },
+        ],
+      }),
+    ];
+    const state: ReviewState = {
+      "CTRL-FLAG": {
+        verdict: null,
+        note: "",
+        savedAt: null,
+        saving: false,
+        error: false,
+      },
+    };
+    expect(getReviewFacetCounts(flagged, state).missingEvidence).toBe(1);
+    expect(
+      filterReviewQuestions(
+        flagged,
+        state,
+        { statuses: [], missingEvidence: true, riskRaised: false },
+        "",
+      ).map((item) => item.control_id),
+    ).toEqual(["CTRL-FLAG"]);
   });
 
   it("searches control id and text case-insensitively and omits suppressed matches", () => {

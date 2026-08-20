@@ -28,6 +28,15 @@ export const EMPTY_REVIEW_FILTERS: ReviewFilters = {
   riskRaised: false,
 };
 
+export function hasMissingOrInsufficientEvidence(
+  question: ReviewerQuestionItem,
+): boolean {
+  return (
+    question.evidence.length === 0 ||
+    question.evidence.some((evidence) => evidence.flag?.flag === "insufficient")
+  );
+}
+
 export function hasActiveReviewFilters(
   filters: ReviewFilters,
   query: string,
@@ -69,9 +78,7 @@ export function getReviewFacetCounts(
       (question) =>
         reviewState[question.control_id]?.verdict === "non_compliant",
     ).length,
-    missingEvidence: visible.filter(
-      (question) => question.evidence.length === 0,
-    ).length,
+    missingEvidence: visible.filter(hasMissingOrInsufficientEvidence).length,
     riskRaised: visible.filter(
       (question) => question.associated_risks.length > 0,
     ).length,
@@ -101,7 +108,12 @@ export function filterReviewQuestions(
     ) {
       return false;
     }
-    if (filters.missingEvidence && question.evidence.length > 0) return false;
+    if (
+      filters.missingEvidence &&
+      !hasMissingOrInsufficientEvidence(question)
+    ) {
+      return false;
+    }
     if (filters.riskRaised && question.associated_risks.length === 0)
       return false;
     if (

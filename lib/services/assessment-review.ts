@@ -132,6 +132,11 @@ export interface ReviewerQuestionItem {
     uploaded_at: string;
     uploaded_by_label: string;
     download_url: string;
+    flag: {
+      flag: "insufficient";
+      note: string;
+      flagged_at: string;
+    } | null;
   }>;
   is_suppressed: boolean;
   control_status: "passed" | "exception" | "failed" | "missing" | "suppressed";
@@ -326,17 +331,31 @@ export class AssessmentReviewService {
           response_value: resp?.response_value ?? null,
           review_status: resp?.review_status ?? null,
           reviewer_note: resp?.reviewer_note ?? "",
-          evidence: (resp?.evidence ?? []).map((e) => ({
-            id: e._id!.toString(),
-            filename: e.filename,
-            mime: e.mime,
-            size: e.size,
-            uploaded_at: e.uploaded_at.toISOString(),
-            uploaded_by_label:
-              uploaderLabels.get(e.uploaded_by.toString()) ??
-              "Unknown uploader",
-            download_url: `/api/portal/assessments/${assessmentId}/responses/${q.control_id}/evidence/${e._id!.toString()}`,
-          })),
+          evidence: (resp?.evidence ?? []).map((e) => {
+            const flag = resp?.evidence_flags.find(
+              (item) =>
+                item.evidence_id.toString() === e._id?.toString() &&
+                item.flag === "insufficient",
+            );
+            return {
+              id: e._id!.toString(),
+              filename: e.filename,
+              mime: e.mime,
+              size: e.size,
+              uploaded_at: e.uploaded_at.toISOString(),
+              uploaded_by_label:
+                uploaderLabels.get(e.uploaded_by.toString()) ??
+                "Unknown uploader",
+              download_url: `/api/assessments/${assessmentId}/responses/${q.control_id}/evidence/${e._id!.toString()}`,
+              flag: flag
+                ? {
+                    flag: "insufficient" as const,
+                    note: flag.note,
+                    flagged_at: flag.flagged_at.toISOString(),
+                  }
+                : null,
+            };
+          }),
           is_suppressed: isSuppressed,
           control_status: controlStatus,
           suggested_guidance: suggestedGuidance,

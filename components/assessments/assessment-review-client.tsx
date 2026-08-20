@@ -213,6 +213,42 @@ export function AssessmentReviewClient({
     [reviewState, scheduleVerdict],
   );
 
+  const updateEvidenceFlag = useCallback(
+    async (
+      controlId: string,
+      evidenceId: string,
+      flag: "insufficient" | null,
+      note: string,
+    ) => {
+      try {
+        const response = await fetch(
+          `/api/assessments/${assessment.id}/responses/${controlId}/evidence/${evidenceId}/flag`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ flag, note }),
+          },
+        );
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          toast.error(
+            body?.message ?? "The evidence annotation could not be saved.",
+          );
+          return false;
+        }
+        toast.success(
+          flag ? "Evidence marked insufficient." : "Evidence flag cleared.",
+        );
+        router.refresh();
+        return true;
+      } catch {
+        toast.error("The evidence annotation could not be saved.");
+        return false;
+      }
+    },
+    [assessment.id, router],
+  );
+
   const markVerdictFromKeyboard = useCallback(
     (controlId: string, verdict: Exclude<ReviewVerdict, null>) => {
       const current = reviewState[controlId];
@@ -488,6 +524,11 @@ export function AssessmentReviewClient({
           onClearFilters={clearProductivityFilters}
           onToggleAllSections={toggleAllSections}
           onOpenShortcuts={() => setShortcutsOpen(true)}
+          evidenceExportUrl={
+            questions.some((question) => question.evidence.length > 0)
+              ? `/api/assessments/${assessment.id}/evidence/export`
+              : null
+          }
         />
 
         {visibleSections.length === 0 ? (
@@ -519,6 +560,7 @@ export function AssessmentReviewClient({
                 onToggle={() => toggleSection(section.index)}
                 onFocusControl={focusControl}
                 onRetry={retryVerdict}
+                onEvidenceFlagChange={updateEvidenceFlag}
               />
             ))}
           </div>

@@ -119,6 +119,54 @@ export class ResponseRepository extends TenantRepository<ResponseDoc> {
     );
   }
 
+  /**
+   * Reviewer Experience Stage 4 — atomically replaces this evidence item's advisory flag.
+   * The response and evidence id remain workspace/control scoped; the aggregation pipeline
+   * avoids a pull-then-push window and guarantees at most one flag per evidence item.
+   */
+  setEvidenceFlag(
+    assessmentId: string | Types.ObjectId,
+    controlId: string,
+    evidenceId: string | Types.ObjectId,
+    flag: {
+      evidence_id: Types.ObjectId;
+      flag: "insufficient";
+      note: string;
+      flagged_at: Date;
+      flagged_by: Types.ObjectId;
+    } | null,
+  ) {
+    const evidenceObjectId = toObjectId(evidenceId);
+    return this.model.findOneAndUpdate(
+      this.scope({
+        assessment_id: toObjectId(assessmentId),
+        control_id: controlId,
+        "evidence._id": evidenceObjectId,
+      } as QueryFilter<ResponseDoc>),
+      [
+        {
+          $set: {
+            evidence_flags: {
+              $concatArrays: [
+                {
+                  $filter: {
+                    input: { $ifNull: ["$evidence_flags", []] },
+                    as: "existing",
+                    cond: {
+                      $ne: ["$$existing.evidence_id", evidenceObjectId],
+                    },
+                  },
+                },
+                flag ? [flag] : [],
+              ],
+            },
+          },
+        },
+      ],
+      { updatePipeline: true, returnDocument: "after" },
+    );
+  }
+
   markReview(
     assessmentId: string | Types.ObjectId,
     controlId: string,

@@ -28,6 +28,12 @@ interface ReviewSectionProps {
   onToggle: () => void;
   onFocusControl: (controlId: string) => void;
   onRetry: (controlId: string) => void;
+  onEvidenceFlagChange: (
+    controlId: string,
+    evidenceId: string,
+    flag: "insufficient" | null,
+    note: string,
+  ) => Promise<boolean>;
 }
 
 export function ReviewSection({
@@ -45,6 +51,7 @@ export function ReviewSection({
   onToggle,
   onFocusControl,
   onRetry,
+  onEvidenceFlagChange,
 }: ReviewSectionProps) {
   const contentId = `review-section-${sectionIndex}`;
   return (
@@ -86,6 +93,7 @@ export function ReviewSection({
               onRaiseRisk={onRaiseRisk}
               onFocusControl={onFocusControl}
               onRetry={onRetry}
+              onEvidenceFlagChange={onEvidenceFlagChange}
             />
           ))}
         </div>

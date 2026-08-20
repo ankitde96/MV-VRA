@@ -34,6 +34,30 @@ For anything smaller, `git diff` and `git restore` are sufficient.
 Overwrite this block at the start of each risky change. One at a time.
 
 ```
+Reviewer experience upgrade — Stage 4: evidence review experience
+(2026-08-20, DONE). Safe baseline: 04b77cc71d75947b884ef93626cd25932bbd1db1
+(origin/main; clean worktree at stage start).
+
+Add internal-session evidence download/export routes, tenant-scoped evidence service and
+repository operations, advisory insufficiency flags, reviewer evidence metadata/actions,
+and the Stage 3 facet integration. This stage adds an archive dependency and one bounded
+environment setting, but does not change session issuance, portal authorization, response
+completion gates, or storage-driver implementations. All object reads continue through
+`getStorageDriver()` and all database access remains workspace-scoped.
+
+Reversible by restoring the Stage 4 route/service/repository/component/test/config/
+documentation files from the safe baseline and reinstalling the baseline lockfile. The
+additive `evidence_flags` records written while deployed remain schema-valid and advisory if
+the UI is reverted; no migration or destructive cleanup is required.
+
+Verified: focused evidence/review tests passed 3 files/31 tests; the disposable desktop and
+mobile evidence journey passed 2/2 and proves single-file download, annotation persistence,
+facet integration, ZIP export, and bidirectional internal/portal session isolation; `21st
+review` reported 0 findings; `npm run verify` passed 35 files/254 tests and the 35-page
+production build.
+
+Prior active plan (closed):
+
 Reviewer experience upgrade — Stage 3: bulk review and reviewer productivity
 (2026-08-20, DONE). Safe baseline: 8aa27a0c2fe353af3721b08435f0cfbaae227c8d
 (origin/main; clean worktree at stage start).
@@ -50,8 +74,6 @@ saved response verdicts and notes remain valid existing data.
 Verified: pure productivity/reducer tests passed 2 files/7 tests; desktop and mobile Stage 3
 plus correction-round Playwright journeys passed 4/4; `21st review` reported 0 findings;
 `npm run verify` passed 34 files/248 tests and the 35-page production build.
-
-Prior active plan (closed):
 
 Reviewer experience upgrade — Stage 2: demo data v2
 (2026-08-20, DONE). Safe baseline: 2ae938cef144

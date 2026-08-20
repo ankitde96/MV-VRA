@@ -325,6 +325,10 @@ real vendor/risk counts and omitted the second entirely, and `authorized_workspa
    actions, URL-restored focus, and explicit saving/saved/error-with-retry row feedback.
    `use-review-productivity` owns only this bounded client view model; suppressed controls
    never enter progress, facets, filtered results, or keyboard order (`DECISIONS.md` 049).
+   Stage 4 renders complete evidence metadata and internal-session downloads per item;
+   reviewers can add or clear an advisory insufficient flag, which also enters the missing-
+   evidence facet without changing verdict or completion semantics. A toolbar action streams
+   a metadata-bounded ZIP with safe paths and a CSV manifest (`DECISIONS.md` 050).
 2. Request changes refuses an empty non-compliant set, then query-guards the source status,
    increments `review_round`, stamps the reviewer, audits, emails recipients, and moves to
    `changes_requested`.

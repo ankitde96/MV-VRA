@@ -51,6 +51,14 @@ const envSchema = z.object({
   // question on which real provider to use is explicitly deferred to a later decision, so
   // there is nothing else to enumerate here yet.
   MAIL_PROVIDER: z.enum(["console"]).default("console"),
+  // Reviewer Experience Stage 4: metadata is preflighted before an archive reads any
+  // storage object. This bounds memory/work and returns a clear validation error instead of
+  // beginning a download that cannot safely finish.
+  EVIDENCE_ZIP_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(100 * 1024 * 1024),
 });
 
 export type Env = z.infer<typeof envSchema> & {

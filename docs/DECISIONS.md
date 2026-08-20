@@ -23,6 +23,47 @@
 
 ---
 
+## [2026-08-20] 050 — Evidence access is session-specific and archive work is metadata-bounded
+
+**Decision:** Give internal reviewers dedicated membership-authenticated evidence routes;
+keep the portal route portal-session-only. Resolve every object key from the tenant-scoped
+assessment response rather than request input. Centralize lookup, advisory insufficiency
+flags, and archive assembly in `AssessmentEvidenceService`; maintain at most one flag per
+evidence ID with an atomic update pipeline and audit both set and clear operations. Build
+ZIPs with `archiver` only after persisted metadata passes `EVIDENCE_ZIP_MAX_BYTES` (100 MiB
+by default), sanitize and de-duplicate entry paths, and include `manifest.csv`.
+
+**Context:** Reviewer data incorrectly emitted portal evidence URLs, so a valid internal
+session received 401. Stage 4 also needed row-level evidence review and whole-assessment
+export without weakening tenant isolation, coupling to an S3 implementation, or turning an
+advisory concern into a completion gate.
+
+**Rationale:** Separate routes preserve the intentional cookie boundary and make each
+authorization model explicit. Server-side lookup prevents forged storage-key reads. A
+single service keeps file, annotation, and archive behavior consistent across routes.
+Metadata preflight gives a deterministic rejection before response streaming begins and
+bounds body memory under the same ceiling; streaming the completed archive avoids creating
+a second full ZIP buffer. Atomic replacement prevents duplicate flags under retries.
+
+**Alternatives rejected:** Reuse the portal route for internal cookies — mixes distinct
+session authorities. Accept a storage key in the URL — creates an object-level
+authorization hazard. Build the ZIP in the browser — exposes per-object orchestration and
+cannot produce a trustworthy server manifest. Gate review completion on insufficiency —
+contradicts the plan's advisory decision. Use a background job — unnecessary at the
+explicitly bounded assessment size and outside MVP scope.
+
+**Consequences:** The app adds three internal routes, `archiver@8.0.0`,
+`@types/archiver@8.0.0`, and `EVIDENCE_ZIP_MAX_BYTES`. Review payloads now use internal
+download URLs and include nullable evidence flags. Flagged evidence appears in the existing
+missing-evidence facet but does not change `review_status`, verdicts, or completion. The
+service preloads source bodies after metadata validation so storage failures remain clear
+before archive headers are committed; the configured ceiling bounds that memory cost.
+
+**Decided by:** Project owner through `REVIEWER-EXPERIENCE-PLAN.md` Stage 4; implementation
+detail reasoned by Codex (GPT-5).
+
+---
+
 ## [2026-08-20] 049 — Reviewer productivity state is bounded, client-side, and URL-addressable
 
 **Decision:** Compute review progress and facets over the assessment snapshot plus reducer
