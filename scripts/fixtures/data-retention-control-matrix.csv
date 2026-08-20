@@ -1,0 +1,4 @@
+data_classification,retention_period,disposal_method,control_owner
+customer_records,7 years,cryptographic erasure,Privacy Operations
+access_logs,1 year,automated deletion,Security Operations
+support_tickets,3 years,verified purge,Customer Operations

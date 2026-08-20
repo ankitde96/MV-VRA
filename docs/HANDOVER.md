@@ -8,17 +8,21 @@
 
 ## Current state (as of 2026-08-20)
 
-- **Reviewer-experience upgrade Stages 0–1 complete and verified.** Stage 0 decomposes the
+- **Reviewer-experience upgrade Stages 0–2 complete and verified.** Stage 0 decomposes the
   review page into reducer-owned state, `ReviewSection`, and memoized `ReviewQuestionRow`,
   with a field-free URL-state hook ready for Stage 3. Stage 1 adds advisory
   `Response.evidence_flags[]`, permits CSV/TXT with MIME/extension agreement while retaining
   the 10 MB cap and ZIP rejection, records exact SPOC IDs on new evidence, and exposes upload
   timestamps plus workspace-scoped uploader labels with a legacy vendor-name fallback.
-  `npm run verify` passed (32 files, 239 tests, production build). See
-  `docs/features/reviewer-experience-stage-{0-decomposition,1-foundations}.md` and
-  `DECISIONS.md` 046–047. **Next discrete request is Stage 2 — demo data v2.** Read plan §2.1
-  before Stage 4: reviewer evidence links still appear to target the portal-only route and
-  must be browser-confirmed before that stage.
+  Stage 2 upgrades the opt-in seeder to a deterministic 25-control review dataset: exact
+  92%/60% profiles, 36 PDF/PNG/CSV/TXT evidence records written through storage, 17 linked
+  service-created risks, 8 CAP tasks (5 past due), and one re-submitted correction round.
+  Two consecutive real seed runs produced identical demo record/storage counts while the
+  non-demo fingerprint stayed unchanged. `npm run verify` passed (33 files, 244 tests,
+  production build). See `docs/features/reviewer-experience-stage-{0-decomposition,1-foundations,2-demo-data}.md`
+  and `DECISIONS.md` 046–048. **Next discrete request is Stage 3 — bulk review + reviewer
+  productivity.** Read plan §2.1 before Stage 4: reviewer evidence links still appear to
+  target the portal-only route and must be browser-confirmed before that stage.
 
 - **Future ideas now have one canonical holding area:** `docs/FUTURE-IDEAS.md` consolidates
   operational hardening, the eight explicitly parked product areas, and still-relevant

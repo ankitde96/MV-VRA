@@ -1,6 +1,6 @@
 # REVIEWER-EXPERIENCE-PLAN.md — Reviewer Experience & Reporting Upgrade
 
-> **Status: Stages 0–1 complete and verified on 2026-08-20. Stages 2–7 remain plan-only.**
+> **Status: Stages 0–2 complete and verified on 2026-08-20. Stages 3–7 remain plan-only.**
 > Produced through the brainstorming workflow on 2026-08-20. Supersedes nothing; extends
 > the completed work in `docs/ASSESSMENT-WORKFLOW-PLAN.md` (Stages 1–5, all shipped).
 >
@@ -34,16 +34,16 @@
 
 Verified by reading the code on 2026-08-20:
 
-| Thing               | Where                                                 | State                                                                                                                                                                                                               |
-| ------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Review page         | `components/assessments/assessment-review-client.tsx` | 670 lines, 9 `useState` hooks, sections grouped in a `Map`, no filter/search/progress/collapse                                                                                                                      |
-| Review service      | `lib/services/assessment-review.ts`                   | 1159 lines; `getAssessmentReviewData`, `markResponseReview`, `resendQuestionnaire`, `raiseRisk`, `createCapTask`, `detectAndEscalateOverdueCaps`, `completeReview`, `listWorkspaceRisks`                            |
-| Reviewer item shape | same file, `ReviewerQuestionItem`                     | already carries `review_status`, `evidence[]`, `associated_risks[]`, `control_status`, `suggested_guidance` — most Stage 3 filters need no new data                                                                 |
-| Note autosave       | `hooks/use-debounced-autosave`                        | exists and is wired; only the _visible_ progress is missing                                                                                                                                                         |
-| Analytics           | `lib/services/analytics.ts`                           | 957 lines; `getWorkspaceAnalytics`, `getRollupAnalyticsSummary`, `getVendorScorecard`                                                                                                                               |
-| Demo seed           | `scripts/seed-demo-data.ts`                           | 371 lines, already repeatable and idempotent by the `.demo.mv-vra.local` domain suffix; seeds vendors, engagements, assessments, risks, offboarding — **no responses, no evidence, no CAP tasks, no review rounds** |
-| Upload rules        | `lib/uploads/constraints.ts`                          | PDF, DOC, DOCX, XLS, XLSX, PNG, JPEG; 10 MB cap. CSV and TXT rejected                                                                                                                                               |
-| CAP task shape      | `lib/db/models/risk.ts`, `cap_tasks[]`                | `owner_type`, `owner_ref`, `due_date`, `status` all already required at the schema level                                                                                                                            |
+| Thing               | Where                                                 | State                                                                                                                                                                                                                     |
+| ------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Review page         | `components/assessments/assessment-review-client.tsx` | 670 lines, 9 `useState` hooks, sections grouped in a `Map`, no filter/search/progress/collapse                                                                                                                            |
+| Review service      | `lib/services/assessment-review.ts`                   | 1159 lines; `getAssessmentReviewData`, `markResponseReview`, `resendQuestionnaire`, `raiseRisk`, `createCapTask`, `detectAndEscalateOverdueCaps`, `completeReview`, `listWorkspaceRisks`                                  |
+| Reviewer item shape | same file, `ReviewerQuestionItem`                     | already carries `review_status`, `evidence[]`, `associated_risks[]`, `control_status`, `suggested_guidance` — most Stage 3 filters need no new data                                                                       |
+| Note autosave       | `hooks/use-debounced-autosave`                        | exists and is wired; only the _visible_ progress is missing                                                                                                                                                               |
+| Analytics           | `lib/services/analytics.ts`                           | 957 lines; `getWorkspaceAnalytics`, `getRollupAnalyticsSummary`, `getVendorScorecard`                                                                                                                                     |
+| Demo seed           | `scripts/seed-demo-data.ts`                           | Repeatable `.demo.mv-vra.local` dataset with a 25-control snapshot, deterministic response profiles, four storage-backed evidence types, linked service-created risks/CAPs, and one correction round (`DECISIONS.md` 048) |
+| Upload rules        | `lib/uploads/constraints.ts`                          | PDF, DOC, DOCX, XLS, XLSX, PNG, JPEG; 10 MB cap. CSV and TXT rejected                                                                                                                                                     |
+| CAP task shape      | `lib/db/models/risk.ts`, `cap_tasks[]`                | `owner_type`, `owner_ref`, `due_date`, `status` all already required at the schema level                                                                                                                                  |
 
 **Correction to a working assumption made during brainstorming:** XLSX is already allowed.
 Stage 1's allowlist change is CSV and TXT only.
@@ -176,6 +176,9 @@ flagged_by }`. Advisory (decision R5); nothing gates on it. Defaults to `[]`, so
 ---
 
 ## Stage 2 — Demo data v2
+
+**Status: ✅ Complete (2026-08-20).** See
+`docs/features/reviewer-experience-stage-2-demo-data.md` and `DECISIONS.md` 048.
 
 **Goal.** A single repeatable command produces a demo environment that looks like real use.
 

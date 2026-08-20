@@ -23,6 +23,46 @@
 
 ---
 
+## [2026-08-20] 048 — Demo review data has exact verdict profiles and uses production service boundaries
+
+**Decision:** Use a 25-control frozen demo snapshot so the strong and weak compliance
+profiles are exactly 23/25 (92%) and 15/25 (60%). Commit one PDF, PNG, CSV, and TXT fixture;
+validate them with the shared upload contract and write them through `getStorageDriver()`
+under stable demo-only keys. Seed responses as fixture records, but create linked risks and
+CAP tasks through `AssessmentReviewService`. Ordinary reruns retain the existing guarded
+delete-and-recreate behavior; `--reset` additionally clears only the dedicated demo storage
+prefix.
+
+**Context:** Reviewer-experience Stages 3–7 need reproducible review, evidence,
+remediation, correction-round, and analytics states. The earlier chart seeder had empty
+template snapshots, no responses/evidence, dummy assessment ids on risks, and CAP-shaped
+records written directly rather than through production behavior.
+
+**Rationale:** Twenty-five controls make the requested headline rates exact rather than
+rounded or random. Stable storage keys prevent ordinary reruns from leaking new objects;
+the explicit reset flag removes orphaned keys after fixture-set changes. Service-created
+risks/CAPs preserve authoritative scoring, owner validation, assessment rollups, and audit
+shape, while direct response creation keeps a development fixture from sending mail or
+replaying an interactive workflow merely to establish known states.
+
+**Alternatives rejected:** Random verdicts — screenshots and Stage 7 expected values would
+drift. Use the 130-control production questionnaire — couples demo availability to a
+separate optional import and makes simple percentages opaque. Write risks/CAP arrays
+directly — bypasses the behavior the demo is intended to exercise. Delete all workspace
+storage on reset — violates the evidence isolation boundary. Put fixture bytes directly in
+the local filesystem — bypasses S3-backed environments and the storage abstraction.
+
+**Consequences:** `npm run db:seed-demo` requires the base seed, produces a known review
+dataset, and overwrites 36 stable evidence keys. `npm run db:seed-demo -- --reset` first
+removes keys listed only beneath `<workspace_id>/reviewer-demo-v2`. Audit events created by
+the production risk/CAP service remain append-only across demo rebuilds; idempotency counts
+therefore apply to the demo domain records, not the global audit trail.
+
+**Decided by:** Project owner through `REVIEWER-EXPERIENCE-PLAN.md` Stage 2; implementation
+detail reasoned by Codex (GPT-5).
+
+---
+
 ## [2026-08-20] 047 — Evidence provenance uses the SPOC principal and text uploads require matching extensions
 
 **Decision:** Add advisory `Response.evidence_flags[]` with no completion gate. Permit

@@ -34,6 +34,29 @@ For anything smaller, `git diff` and `git restore` are sufficient.
 Overwrite this block at the start of each risky change. One at a time.
 
 ```
+Reviewer experience upgrade — Stage 2: demo data v2
+(2026-08-20, DONE). Safe baseline: 2ae938cef144
+(origin/main; clean worktree at stage start).
+
+Extend only the opt-in demo seeder and committed fixture/test/documentation files. Existing
+production schemas, auth, APIs, and UI remain unchanged. Database cleanup stays bounded to
+vendors in the default workspace whose domains end in `.demo.mv-vra.local`; responses,
+assessments, risks, offboarding records, and engagements are resolved from those exact
+vendor ids before deletion. Evidence uses a dedicated storage prefix; `--reset` may delete
+only keys listed beneath that prefix.
+
+Reversible by restoring the Stage 2 files from the safe baseline. Locally seeded demo
+records can be rebuilt with the baseline script; non-demo records are outside both cleanup
+boundaries. No migration or production cleanup is required.
+
+Verified: focused fixture/spec tests passed 1 file/5 tests; the real seeder produced the
+same 12 vendors, 11 assessments, 225 responses, 36 evidence records/keys, 17 risks, and 8
+CAP tasks on consecutive runs. The non-demo counts and SHA-256 fingerprint were unchanged.
+`npm run verify` passed 33 files/244 tests and the 35-page production build. No Playwright
+run because this stage changes no UI or runtime request path.
+
+Prior active plan (closed):
+
 Reviewer experience upgrade — Stage 1: schema and upload foundations
 (2026-08-20, DONE). Safe baseline: 94500144363457d1c34e33e819523cbeca31b2b5
 (pushed origin/main; clean worktree at stage start).

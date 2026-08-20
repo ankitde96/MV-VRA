@@ -167,6 +167,11 @@ recomputed fresh at submission time instead. Step 6's orphan-handling gap — ve
 `scripts/sweep-orphaned-evidence.ts` against a real deliberately-orphaned file (dry-run
 reports it, `--delete` removes it).
 
+**Deterministic demo fixture (Reviewer experience Stage 2):** `npm run db:seed-demo`
+exercises this same data shape with 25-control response sets and four storage-backed
+evidence types. It writes fixture bytes through `getStorageDriver()` and never enters a
+parallel evidence path.
+
 ## F4 — Review → risk register → remediation ✅ BUILT (Phases 8–9, 2026-08-16)
 
 1. Internal reviewer opens the submitted assessment (`GET /api/assessments/[id]/review`,
@@ -325,3 +330,9 @@ real vendor/risk counts and omitted the second entirely, and `authorized_workspa
    reviewer who requested changes.
 5. Completion refuses visible unmarked controls and non-compliant controls without a linked
    risk; after those gates pass it completes through the existing scoring/review path.
+
+`scripts/seed-demo-data.ts` now includes one `review_round: 1` assessment with
+`resent_by`/`resent_at`, preserved round-zero verdicts, corrected response values, and a
+current `submitted` state. Linked demo risks and CAP tasks are created through the same
+`AssessmentReviewService` methods named in F4, including past-due open tasks for the normal
+request-driven overdue path.

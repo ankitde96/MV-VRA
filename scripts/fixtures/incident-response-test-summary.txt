@@ -1,0 +1,5 @@
+Incident Response Exercise Summary
+Exercise date: 2026-07-15
+Scenario: simulated credential compromise in a non-production environment
+Outcome: escalation, containment, recovery, and notification objectives met
+Follow-up: rotate the on-call contact list by 2026-09-01

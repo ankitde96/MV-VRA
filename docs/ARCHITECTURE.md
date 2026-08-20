@@ -49,6 +49,15 @@ state retains object identity across reducer actions, so one note edit can remai
 no named fields or current consumer in Stage 0. Service, repository, and authorization
 boundaries are unchanged. See `DECISIONS.md` 046.
 
+**Reviewer experience Stages 1–2 (2026-08-20):** Stage 1 adds additive evidence-review
+foundations and precise uploader provenance (`DECISIONS.md` 047). Stage 2 leaves runtime
+boundaries unchanged and extends only the opt-in demo-data path: `scripts/demo-data-spec.ts`
+owns a deterministic 25-control snapshot and verdict profiles; `scripts/seed-demo-data.ts`
+writes response/evidence fixtures, delegates risk/CAP creation to
+`AssessmentReviewService`, and stores bytes only through `getStorageDriver()`. Database
+cleanup is resolved from workspace-scoped `.demo.mv-vra.local` vendor ids; storage reset is
+limited to `<workspace_id>/reviewer-demo-v2`. See `DECISIONS.md` 048.
+
 ## 1. What this system is
 
 **MV-VRA** (MoneyView Vendor Risk Assessment) is a centralized system of record for
